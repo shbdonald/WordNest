@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>WordNest 单词窝</title>
+  <style>
+    body {
+      width: 400px;
+      padding: 30px;
+      font-family: 'Microsoft YaHei', Arial, sans-serif;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 200px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .header h1 {
+      font-size: 20px;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    
+    .header p {
+      font-size: 12px;
+      color: #666;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 15px 0;
+      color: #333;
+    }
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 5px;
+    }
+    .stat-item {
+      text-align: center;
+      flex: 1;
+    }
+    .stat-number {
+      font-size: 20px;
+      font-weight: bold;
+      color: #1976D2;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: #666;
+      margin-top: 5px;
+    }
+    .stat-number.total {
+      color: #1976D2;
+    }
+    .stat-number.mastered {
+      color: #43A047;
+    }
+    .stat-number.new {
+      color: #FF6B35;
+    }
+    .stat-item:has(.stat-number.total) .stat-label { color: #1565C0; }
+    .stat-item:has(.stat-number.mastered) .stat-label { color: #2E7D32; }
+    .stat-item:has(.stat-number.new) .stat-label { color: #E64A19; }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+    .btn-primary {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .btn-primary:hover {
+      background-color: #45a049;
+    }
+    .btn-test {
+      background-color: #667eea;
+      color: white;
+    }
+    .btn-test:hover {
+      background-color: #5568d3;
+    }
+    .btn-danger {
+      background-color: #f44336;
+      color: white;
+    }
+    .btn-danger:hover {
+      background-color: #da190b;
+    }
+    .word-list {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      padding: 5px;
+    }
+    .word-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      margin: 2px 0;
+      background: #f9f9f9;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .word-item:hover {
+      background: #f0f0f0;
+    }
+    .word-info {
+      flex: 1;
+    }
+    .word-name {
+      font-weight: 600;
+      color: #333;
+    }
+    .word-meaning {
+      font-size: 11px;
+      color: #666;
+      margin-top: 2px;
+    }
+    .word-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-left: 5px;
+    }
+    .badge-new {
+      background: #fff3e0;
+      color: #FF6B35;
+    }
+    .badge-mastered {
+      background: #e8f5e9;
+      color: #4CAF50;
+    }
+    .tabs {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .tab {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: #e0e0e0;
+      border-radius: 5px 5px 0 0;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .tab.active {
+      background: #4CAF50;
+      color: white;
+    }
+    .info {
+      margin-top: 15px;
+      padding: 10px;
+      background: #e3f2fd;
+      border-radius: 5px;
+      font-size: 12px;
+      color: #1976d2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📚 WordNest 单词窝</h1>
+      <p>快速访问</p>
+    </div>
+    
+    <!-- 用户选择区域 -->
+    <div style="margin-bottom: 15px; padding: 12px; background: #f0f4ff; border-radius: 8px; border: 1px solid #667eea;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <label style="font-size: 12px; font-weight: 600; color: #333;">当前用户：</label>
+        <span id="currentUserName" style="font-size: 13px; color: #667eea; font-weight: 600;">加载中...</span>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <select id="userSelect" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; background: white;">
+          <option value="">选择用户...</option>
+        </select>
+        <button id="addUserBtn" style="padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">+ 添加</button>
+      </div>
+    </div>
+    
+    <div class="stats">
+      <div class="stat-item">
+        <div class="stat-number total" id="totalCount">0</div>
+        <div class="stat-label">总单词</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number mastered" id="masteredCount">0</div>
+        <div class="stat-label">已记住</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number new" id="newCount">0</div>
+        <div class="stat-label">未记住</div>
+      </div>
+    </div>
+    
+    <div class="button-group" style="margin-top: 20px;">
+      <button class="btn btn-primary" id="openMain" style="width: 100%; padding: 12px; font-size: 14px;">
+        打开主页面
+      </button>
+    </div>
+    
+    <div class="button-group">
+      <button class="btn btn-test" id="testBtn" style="flex: 1; padding: 10px; font-size: 13px;">开始测试</button>
+      <button class="btn btn-primary" id="openSettings" style="flex: 1; padding: 10px; font-size: 13px;">设置</button>
+    </div>
+    
+    <div class="info" style="margin-top: 15px; font-size: 12px; line-height: 1.65;">
+      使用说明：<br>
+      • 双击英文单词：查词并加入生词本<br>
+      • Ctrl + 选中单词：同样可收藏<br>
+      • 划选句子/短语：弹出翻译（不入库）<br>
+      • 悬停已标记词：看释义、发音、备注<br>
+      • 波浪线：橙红=未记住，绿色=已记住<br>
+      • 主页面：生词本 / 单词记忆 / 设置<br>
+      • 设置里可测速或手动调整查词顺序；多用户词库互不干扰
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

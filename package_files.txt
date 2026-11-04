@@ -1,0 +1,39 @@
+# 扩展必需文件列表
+# 这些文件需要复制到其他机器上才能正常使用扩展
+
+# ========== 核心文件（必需） ==========
+manifest.json
+background.js
+content.js
+content.css
+popup.html
+popup.js
+main.html
+main.js
+options.html
+options.js
+
+# ========== 词典文件（可选；现已改为上传 CSV 自动转换，不必打包） ==========
+# offline_dict_full.json
+# offline_dict_full_lemma_map.json
+
+# ========== 工具脚本（可选，用于转换词典） ==========
+# dict_converter.py                   # 词典转换工具
+# clean_cache.bat                     # 清理缓存脚本（Windows）
+# clean_cache.ps1                     # 清理缓存脚本（PowerShell）
+
+# ========== 说明文件（可选） ==========
+# README.md                           # 使用说明
+# README_dict_converter.md            # 词典转换说明
+
+# ========== 不要包含的文件 ==========
+# __pycache__/                        # Python 缓存目录
+# *.pyc                               # Python 编译文件
+# test.html                           # 测试文件
+# test.js                             # 测试文件
+# test_extension.html                 # 测试文件
+# ecdict.csv                          # 原始词典数据（太大）
+# offline_dict_*.json                  # 测试词典文件（如果不需要）
+# convert_*.js                         # 转换脚本（如果不需要）
+# convert_*.bat                        # 转换脚本（如果不需要）
+# convert_*.ps1                        # 转换脚本（如果不需要）

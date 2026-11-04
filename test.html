@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>单词测试 - WordNest 单词窝</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .test-container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 900px;
+      width: 100%;
+      padding: 40px;
+      text-align: center;
+    }
+
+    /* 桌面端样式 */
+    @media (min-width: 768px) {
+      .test-container {
+        max-width: 800px;
+        padding: 50px;
+      }
+
+      .word-card {
+        padding: 50px;
+        min-height: 300px;
+      }
+
+      .word-text {
+        font-size: 56px;
+      }
+
+      .translation-input {
+        font-size: 20px;
+        padding: 14px 18px;
+      }
+
+      .test-btn {
+        padding: 16px 35px;
+        font-size: 17px;
+        min-width: 140px;
+      }
+
+      .test-header h1 {
+        font-size: 32px;
+      }
+
+      .dict-content {
+        padding: 30px;
+      }
+
+      .dict-header h2 {
+        font-size: 32px;
+      }
+    }
+
+    /* 移动端样式 */
+    @media (max-width: 767px) {
+      body {
+        padding: 10px;
+      }
+
+      .test-container {
+        padding: 20px;
+        border-radius: 15px;
+      }
+
+      .test-header h1 {
+        font-size: 24px;
+      }
+
+      .word-card {
+        padding: 25px 20px;
+        min-height: 200px;
+      }
+
+      .word-text {
+        font-size: 36px;
+        margin-bottom: 6px;
+      }
+
+      .word-phonetic {
+        font-size: 16px;
+        margin-bottom: 18px;
+      }
+
+      .translation-input {
+        font-size: 16px;
+        padding: 10px 14px;
+      }
+
+      .test-btn {
+        padding: 12px 20px;
+        font-size: 14px;
+        min-width: 100px;
+      }
+
+      .test-actions {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .test-actions .test-btn {
+        width: 100%;
+        min-width: auto;
+      }
+
+      .dict-content {
+        padding: 15px;
+      }
+
+      .dict-header {
+        padding: 15px;
+      }
+
+      .dict-header h2 {
+        font-size: 24px;
+      }
+
+      .dict-phonetic {
+        font-size: 16px;
+      }
+
+      .dict-part-of-speech {
+        font-size: 14px;
+      }
+
+      .dict-def-text {
+        font-size: 14px;
+      }
+
+      .stats-summary {
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+
+    /* 超小屏幕 */
+    @media (max-width: 480px) {
+      .test-container {
+        padding: 15px;
+      }
+
+      .word-text {
+        font-size: 32px;
+      }
+
+      .word-translation {
+        font-size: 20px;
+      }
+
+      .test-header h1 {
+        font-size: 20px;
+      }
+    }
+
+    .test-header {
+      margin-bottom: 30px;
+    }
+
+    .test-header h1 {
+      font-size: 28px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .test-progress {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 10px;
+    }
+
+    .progress-info {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4CAF50, #45a049);
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+
+    .word-card {
+      background: #fff;
+      border: 2px solid #e0e0e0;
+      border-radius: 15px;
+      padding: 40px;
+      margin-bottom: 30px;
+      min-height: 250px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.3s;
+    }
+
+    .word-card.show-translation {
+      border-color: #4CAF50;
+      background: #f1f8f4;
+    }
+
+    .word-card.wrong-answer {
+      border-color: #f44336;
+      background: #ffebee;
+    }
+
+    .word-text {
+      font-size: 48px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+      word-break: break-word;
+    }
+
+    .word-phonetic {
+      font-size: 20px;
+      color: #666;
+      font-style: italic;
+      margin-bottom: 24px;
+      min-height: 1.2em;
+      letter-spacing: 0.5px;
+    }
+
+    .word-phonetic:empty {
+      display: none;
+    }
+
+    .options-section {
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto 20px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    .option-btn {
+      display: flex;
+      align-items: center;
+      padding: 18px 20px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: left;
+      position: relative;
+    }
+
+    .option-btn:hover {
+      border-color: #2196F3;
+      background: #f5f9ff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+    }
+
+    .option-btn.selected {
+      border-color: #2196F3;
+      background: #e3f2fd;
+    }
+
+    .option-btn.correct {
+      border-color: #4CAF50;
+      background: #f1f8f4;
+    }
+
+    .option-btn.wrong {
+      border-color: #f44336;
+      background: #ffebee;
+    }
+
+    .option-btn.disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .option-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #f5f5f5;
+      color: #666;
+      font-weight: 600;
+      font-size: 16px;
+      margin-right: 15px;
+      flex-shrink: 0;
+      transition: all 0.3s;
+    }
+
+    .option-btn.selected .option-label {
+      background: #2196F3;
+      color: white;
+    }
+
+    .option-btn.correct .option-label {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .option-btn.wrong .option-label {
+      background: #f44336;
+      color: white;
+    }
+
+    .option-text {
+      flex: 1;
+      font-size: 16px;
+      color: #333;
+      word-break: break-word;
+    }
+
+    @media (max-width: 767px) {
+      .options-section {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .option-btn {
+        padding: 15px 18px;
+      }
+
+      .option-label {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+        margin-right: 12px;
+      }
+
+      .option-text {
+        font-size: 15px;
+      }
+    }
+
+    .word-translation {
+      font-size: 24px;
+      color: #4CAF50;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      margin-top: 15px;
+    }
+
+    .word-card.show-translation .word-translation {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .answer-feedback {
+      margin-top: 15px;
+      font-size: 16px;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+    }
+
+    .answer-feedback.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .answer-feedback.correct {
+      color: #4CAF50;
+    }
+
+    .answer-feedback.wrong {
+      color: #f44336;
+    }
+
+    .word-status {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #999;
+    }
+
+    .test-actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .test-btn {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      min-width: 120px;
+    }
+
+    .btn-submit {
+      background: #2196F3;
+      color: white;
+    }
+
+    .btn-submit:hover {
+      background: #1976D2;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+    }
+
+    .btn-know {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .btn-know:hover {
+      background: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+    }
+
+    .btn-retry {
+      background: #FF9800;
+      color: white;
+    }
+
+    .btn-retry:hover {
+      background: #F57C00;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+    }
+
+    .btn-dont-know {
+      background: #9C27B0;
+      color: white;
+    }
+
+    .btn-dont-know:hover {
+      background: #7B1FA2;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(156, 39, 176, 0.4);
+    }
+
+    .btn-master {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .btn-master:hover {
+      background: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+    }
+
+    .btn-next {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-next:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-finish {
+      background: #9C27B0;
+      color: white;
+    }
+
+    .btn-finish:hover {
+      background: #7B1FA2;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(156, 39, 176, 0.4);
+    }
+
+    .test-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .empty-state {
+      padding: 60px 20px;
+      color: #999;
+    }
+
+    .empty-state h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+      color: #666;
+    }
+
+    .empty-state p {
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+
+    .back-btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border: none;
+      border-radius: 8px;
+      transition: all 0.3s;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .back-btn:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+
+    .stats-summary {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 20px;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 10px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 24px;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .dictionary-card {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      margin-top: 20px;
+      max-height: 60vh;
+      overflow-y: auto;
+      animation: vocabFadeIn 0.3s ease-out;
+    }
+
+    @media (min-width: 768px) {
+      .dictionary-card {
+        max-height: 500px;
+      }
+    }
+
+    @media (max-width: 767px) {
+      .dictionary-card {
+        max-height: 50vh;
+        margin-top: 15px;
+      }
+    }
+
+    .dict-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 2px solid #e0e0e0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 15px 15px 0 0;
+      color: white;
+    }
+
+    .dict-header h2 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .dict-close {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      font-size: 28px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .dict-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: rotate(90deg);
+    }
+
+    .dict-content {
+      padding: 20px;
+    }
+
+    .dict-phonetic {
+      font-size: 18px;
+      color: #666;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+
+    .dict-meaning {
+      margin-bottom: 25px;
+    }
+
+    .dict-part-of-speech {
+      font-size: 16px;
+      font-weight: 600;
+      color: #667eea;
+      margin-bottom: 10px;
+      padding-bottom: 5px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .dict-definition {
+      margin-bottom: 15px;
+      padding-left: 15px;
+      border-left: 3px solid #667eea;
+    }
+
+    .dict-def-text {
+      font-size: 16px;
+      color: #333;
+      margin-bottom: 8px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .dict-example {
+      font-size: 14px;
+      color: #666;
+      font-style: italic;
+      padding-left: 10px;
+      margin-top: 5px;
+      word-break: break-word;
+    }
+
+    .dict-example::before {
+      content: '"';
+    }
+
+    .dict-example::after {
+      content: '"';
+    }
+
+    .dict-synonyms {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .dict-synonyms-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .dict-synonyms-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .dict-synonym {
+      background: #f5f5f5;
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 13px;
+      color: #667eea;
+    }
+
+    .loading-dict {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <div class="test-header">
+      <h1>📚 单词测试</h1>
+      <div class="test-progress">
+        <div>
+          <div class="progress-info">
+            <span id="currentIndex">0</span> / <span id="totalWords">0</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wordCard" class="word-card" style="display: none;">
+      <div class="word-text" id="wordText"></div>
+      <div class="word-phonetic" id="wordPhonetic"></div>
+      <div class="options-section" id="optionsSection">
+        <div class="option-btn" data-option="0">
+          <span class="option-label">A</span>
+          <span class="option-text" id="option0"></span>
+        </div>
+        <div class="option-btn" data-option="1">
+          <span class="option-label">B</span>
+          <span class="option-text" id="option1"></span>
+        </div>
+        <div class="option-btn" data-option="2">
+          <span class="option-label">C</span>
+          <span class="option-text" id="option2"></span>
+        </div>
+        <div class="option-btn" data-option="3">
+          <span class="option-label">D</span>
+          <span class="option-text" id="option3"></span>
+        </div>
+      </div>
+      <div class="word-translation" id="wordTranslation"></div>
+      <div class="answer-feedback" id="answerFeedback"></div>
+      <div class="word-status" id="wordStatus"></div>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+      <h2>暂无单词</h2>
+      <p>请先收藏一些单词，然后再来测试吧！</p>
+      <button class="back-btn" onclick="window.close()">关闭</button>
+    </div>
+
+    <div class="test-actions" id="testActions" style="display: none;">
+      <button class="test-btn btn-submit" id="submitBtn" style="display: none;">提交答案</button>
+      <button class="test-btn btn-retry" id="retryBtn" style="display: none;">重答</button>
+      <button class="test-btn btn-dont-know" id="dontKnowBtn" style="display: none;">不记得</button>
+      <button class="test-btn btn-next" id="nextBtn" style="display: none;">下一个</button>
+      <button class="test-btn btn-finish" id="finishBtn" style="display: none;">完成测试</button>
+    </div>
+
+    <div id="dictionaryCard" class="dictionary-card" style="display: none;">
+      <div class="dict-header">
+        <h2 id="dictWord"></h2>
+        <button class="dict-close" id="dictClose">×</button>
+      </div>
+      <div class="dict-content" id="dictContent"></div>
+    </div>
+
+    <div class="stats-summary" id="statsSummary" style="display: none;">
+      <div class="stat-item">
+        <div class="stat-number" id="totalCount">0</div>
+        <div class="stat-label">总单词数</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" id="masteredCount">0</div>
+        <div class="stat-label">已记住</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" id="newCount">0</div>
+        <div class="stat-label">未记住</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="test.js"></script>
+</body>
+</html>

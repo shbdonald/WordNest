@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "WordNest 单词窝",
+  "version": "3.0.0",
+  "description": "WordNest（单词窝）：网页划词收词、离线词典与单词记忆",
+  "permissions": [
+  "storage",
+  "activeTab",
+  "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "WordNest 单词窝"
+  },
+  "options_page": "options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["content.css", "test.html", "test.js", "main.html", "main.js", "api-log.html", "api-log.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

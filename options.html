@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>WordNest 单词窝 - 设置</title>
+  <script>
+    (function () {
+      try {
+        location.replace(chrome.runtime.getURL('main.html') + '?tab=settings');
+      } catch (e) {
+        location.replace('main.html?tab=settings');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <p>正在打开设置…若未跳转请<a id="fallbackLink" href="main.html?tab=settings">点击这里</a>。</p>
+  <script>
+    try {
+      var a = document.getElementById('fallbackLink');
+      if (a) a.href = chrome.runtime.getURL('main.html') + '?tab=settings';
+    } catch (e) {}
+  </script>
+</body>
+</html>

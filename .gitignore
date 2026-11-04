@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+build/
+
+# 扩展发布副本与打包产物（根目录源码即为可加载扩展）
+dist/
+*.rar
+*.zip
+
+# 词典文件（太大，不需要版本控制；运行时由扩展下载/转换）
+*.csv
+offline_dict*.json
+*_lemma_map.json
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# 临时文件
+*.tmp
+*.log

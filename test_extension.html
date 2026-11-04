@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>扩展功能测试</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .test-section h2 {
+      margin-top: 0;
+      color: #333;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button.danger {
+      background: #f44336;
+    }
+    button.danger:hover {
+      background: #d32f2f;
+    }
+    .result {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      background: #f0f0f0;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+  </style>
+</head>
+<body>
+  <h1>扩展功能测试</h1>
+  
+  <div class="test-section">
+    <h2>1. 测试消息传递（统计信息查询）</h2>
+    <button onclick="testGetStats()">测试获取统计信息</button>
+    <div id="statsResult" class="result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>2. 测试离线词典查询</h2>
+    <input type="text" id="testWord" placeholder="输入要测试的单词（如：expectancies）" style="padding: 8px; width: 300px; margin-right: 10px;">
+    <button onclick="testQueryWord()">测试查询</button>
+    <div id="queryResult" class="result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>3. 测试 IndexedDB 连接</h2>
+    <button onclick="testIndexedDB()">测试 IndexedDB</button>
+    <div id="dbResult" class="result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>4. 测试 Service Worker 状态</h2>
+    <button onclick="testServiceWorker()">检查 Service Worker</button>
+    <div id="swResult" class="result"></div>
+  </div>
+
+  <script>
+    function showResult(elementId, message, type = 'info') {
+      const element = document.getElementById(elementId);
+      element.textContent = message;
+      element.className = `result ${type}`;
+    }
+
+    async function testGetStats() {
+      showResult('statsResult', '正在查询统计信息...', 'info');
+      
+      try {
+        chrome.runtime.sendMessage({ action: 'getDictionaryStats' }, (response) => {
+          if (chrome.runtime.lastError) {
+            showResult('statsResult', `❌ 错误：${chrome.runtime.lastError.message}`, 'error');
+            return;
+          }
+          
+          if (response && response.success) {
+            const stats = response.stats;
+            const result = `✅ 查询成功！\n\n` +
+              `词典单词数：${stats.wordCount.toLocaleString()} 个\n` +
+              `词形映射数：${stats.lemmaCount.toLocaleString()} 条\n` +
+              `有词典：${stats.hasDictionary ? '是' : '否'}\n` +
+              `有映射表：${stats.hasLemmaMap ? '是' : '否'}\n` +
+              (stats.error ? `\n警告：${stats.error}` : '');
+            showResult('statsResult', result, stats.error ? 'error' : 'success');
+          } else {
+            showResult('statsResult', `❌ 查询失败：${response?.error || '未知错误'}`, 'error');
+          }
+        });
+      } catch (error) {
+        showResult('statsResult', `❌ 异常：${error.message}`, 'error');
+      }
+    }
+
+    async function testQueryWord() {
+      const word = document.getElementById('testWord').value.trim();
+      if (!word) {
+        showResult('queryResult', '请输入要测试的单词', 'error');
+        return;
+      }
+      
+      showResult('queryResult', `正在查询单词 "${word}"...`, 'info');
+      
+      try {
+        chrome.runtime.sendMessage({ action: 'queryOfflineDict', word: word }, (response) => {
+          if (chrome.runtime.lastError) {
+            showResult('queryResult', `❌ 错误：${chrome.runtime.lastError.message}`, 'error');
+            return;
+          }
+          
+          if (response && response.success) {
+            if (response.translation) {
+              showResult('queryResult', `✅ 找到翻译：\n${response.translation}`, 'success');
+            } else {
+              showResult('queryResult', `⚠️ 未找到翻译（单词 "${word}" 不在词典中或映射表中）`, 'info');
+            }
+          } else {
+            showResult('queryResult', `❌ 查询失败：${response?.error || '未知错误'}`, 'error');
+          }
+        });
+      } catch (error) {
+        showResult('queryResult', `❌ 异常：${error.message}`, 'error');
+      }
+    }
+
+    async function testIndexedDB() {
+      showResult('dbResult', '正在测试 IndexedDB...', 'info');
+      
+      try {
+        // 尝试通过 background script 查询来间接测试 IndexedDB
+        chrome.runtime.sendMessage({ action: 'getDictionaryStats' }, (response) => {
+          if (chrome.runtime.lastError) {
+            showResult('dbResult', `❌ IndexedDB 测试失败：${chrome.runtime.lastError.message}`, 'error');
+            return;
+          }
+          
+          if (response && response.success) {
+            const stats = response.stats;
+            const result = `✅ IndexedDB 连接正常！\n\n` +
+              `数据库状态：\n` +
+              `- 词典 Store：${stats.hasDictionary ? '存在' : '不存在'}\n` +
+              `- 映射表 Store：${stats.hasLemmaMap ? '存在' : '不存在'}\n` +
+              `- 词典记录数：${stats.wordCount}\n` +
+              `- 映射表记录数：${stats.lemmaCount}`;
+            showResult('dbResult', result, 'success');
+          } else {
+            showResult('dbResult', `⚠️ IndexedDB 可能未初始化：${response?.error || '未知错误'}`, 'error');
+          }
+        });
+      } catch (error) {
+        showResult('dbResult', `❌ 异常：${error.message}`, 'error');
+      }
+    }
+
+    async function testServiceWorker() {
+      showResult('swResult', '正在检查 Service Worker...', 'info');
+      
+      try {
+        // 检查 service worker 是否运行
+        chrome.runtime.sendMessage({ action: 'ping' }, (response) => {
+          if (chrome.runtime.lastError) {
+            const error = chrome.runtime.lastError.message;
+            if (error.includes('port closed') || error.includes('message port')) {
+              showResult('swResult', `⚠️ Service Worker 可能已关闭或重启\n\n建议：\n1. 重新加载扩展\n2. 等待几秒后重试\n3. 检查扩展是否已启用`, 'error');
+            } else {
+              showResult('swResult', `❌ Service Worker 错误：${error}`, 'error');
+            }
+            return;
+          }
+          
+          // 尝试获取统计信息来确认 service worker 正常工作
+          chrome.runtime.sendMessage({ action: 'getDictionaryStats' }, (response2) => {
+            if (chrome.runtime.lastError) {
+              showResult('swResult', `⚠️ Service Worker 响应异常：${chrome.runtime.lastError.message}`, 'error');
+              return;
+            }
+            
+            if (response2 && response2.success) {
+              showResult('swResult', `✅ Service Worker 运行正常！\n\n可以正常接收和响应消息。`, 'success');
+            } else {
+              showResult('swResult', `⚠️ Service Worker 响应异常：${response2?.error || '未知错误'}`, 'error');
+            }
+          });
+        });
+      } catch (error) {
+        showResult('swResult', `❌ 异常：${error.message}`, 'error');
+      }
+    }
+
+    // 页面加载时自动测试一次统计信息
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        testGetStats();
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
