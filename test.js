@@ -1083,6 +1083,12 @@
     if (!force && isLookupSettled(existing)) {
       return existing;
     }
+    if (!force) {
+      const shared = await readSharedLookup(word);
+      if (shared && shared.dict && isLookupSettled(shared.dict)) {
+        return shared.dict;
+      }
+    }
     if (!AUTO_API_ENRICH) {
       return existing || null;
     }
@@ -1132,6 +1138,39 @@
     });
   }
 
+  function readSharedLookup(word) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ action: 'getSharedLookup', word }, (res) => {
+          if (chrome.runtime.lastError || !res || !res.success) {
+            resolve(null);
+            return;
+          }
+          resolve(res.entry || null);
+        });
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  function writeSharedLookup(word, dictData) {
+    if (!word || !dictData) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({
+          action: 'putSharedLookup',
+          word,
+          dict: dictData,
+          translation: dictData.translation || '',
+          translationSource: dictData.translationSource || ''
+        }, () => resolve());
+      } catch (e) {
+        resolve();
+      }
+    });
+  }
+
   async function saveOneWordDictionary(word, dictData) {
     if (!word || !dictData) return;
     const currentUserId = await getCurrentUserId();
@@ -1151,6 +1190,9 @@
     await new Promise((resolve) => {
       chrome.storage.local.set(userData, resolve);
     });
+    if (isLookupSettled(dictData) || dictData.lookupFullChainTried === true) {
+      await writeSharedLookup(word, dictData);
+    }
   }
 
   // 禁止开测时批量刷词库（1600+ 词会爆费用）；按需单词查询即可

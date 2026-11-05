@@ -19,6 +19,18 @@
   const deepseekApiKey = document.getElementById('deepseekApiKey');
   const testDeepseekBtn = document.getElementById('testDeepseekBtn');
   const deepseekStatus = document.getElementById('deepseekStatus');
+  const sentenceTranslateStatus = document.getElementById('sentenceTranslateStatus');
+  const sentenceModeInputs = document.querySelectorAll('input[name="sentenceTranslateMode"]');
+  const uiThemeStatus = document.getElementById('uiThemeStatus');
+  const uiThemeInputs = document.querySelectorAll('input[name="uiTheme"]');
+  const UI_THEMES = ['violet', 'ocean', 'forest', 'sunset', 'night'];
+  const UI_THEME_LABELS = {
+    violet: '暮紫',
+    ocean: '海蓝',
+    forest: '森绿',
+    sunset: '暖阳',
+    night: '夜色'
+  };
 
   const DICT_ZH_IDS = ['offline', 'youdao_dict', 'd3325'];
   const DICT_EN_IDS = ['fd', 'datamuse'];
@@ -562,10 +574,65 @@
   }
 
   // 加载所有设置
+  function syncSentenceTranslateModeUI(mode) {
+    const value = mode === 'button' ? 'button' : 'auto';
+    sentenceModeInputs.forEach((input) => {
+      const selected = input.value === value;
+      input.checked = selected;
+      const label = input.closest('.radio-option');
+      if (label) label.classList.toggle('selected', selected);
+    });
+  }
+
+  function persistSentenceTranslateMode(mode) {
+    const value = mode === 'button' ? 'button' : 'auto';
+    chrome.storage.local.set({ sentenceTranslateMode: value }, () => {
+      syncSentenceTranslateModeUI(value);
+      flashStatus(
+        sentenceTranslateStatus,
+        value === 'button' ? '划句翻译已改为：浮动按钮' : '划句翻译已改为：自动翻译',
+        'success'
+      );
+    });
+  }
+
+  sentenceModeInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      if (input.checked) persistSentenceTranslateMode(input.value);
+    });
+  });
+
+  function syncUiThemeUI(theme) {
+    const value = UI_THEMES.indexOf(theme) >= 0 ? theme : 'violet';
+    uiThemeInputs.forEach((input) => {
+      const selected = input.value === value;
+      input.checked = selected;
+      const label = input.closest('.radio-option');
+      if (label) label.classList.toggle('selected', selected);
+    });
+    if (typeof window.applyWnTheme === 'function') window.applyWnTheme(value);
+  }
+
+  function persistUiTheme(theme) {
+    const value = UI_THEMES.indexOf(theme) >= 0 ? theme : 'violet';
+    chrome.storage.local.set({ uiTheme: value }, () => {
+      syncUiThemeUI(value);
+      flashStatus(uiThemeStatus, '界面主题已改为：' + (UI_THEME_LABELS[value] || value), 'success');
+    });
+  }
+
+  uiThemeInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      if (input.checked) persistUiTheme(input.value);
+    });
+  });
+
   function loadSettings() {
-    chrome.storage.local.get(['apiRouteConfig', 'baiduAppId', 'baiduSecretKey', 'deepseekApiKey'], (result) => {
+    chrome.storage.local.get(['apiRouteConfig', 'baiduAppId', 'baiduSecretKey', 'deepseekApiKey', 'sentenceTranslateMode', 'uiTheme'], (result) => {
       baiduConfigured = !!(result.baiduAppId && result.baiduSecretKey);
       renderApiRouteSummary(result.apiRouteConfig || DEFAULT_API_ROUTE);
+      syncSentenceTranslateModeUI(result.sentenceTranslateMode);
+      syncUiThemeUI(result.uiTheme);
 
       if (result.baiduAppId) {
         baiduAppId.value = result.baiduAppId;
@@ -968,9 +1035,31 @@
     });
   }
 
-  // 按指定用户清空生词记录（保留用户账号）
+  function archiveUserLookups(userId) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ action: 'archiveUserLookups', userId }, (res) => {
+          if (chrome.runtime.lastError || !res || res.success === false) {
+            resolve(null);
+            return;
+          }
+          resolve(res.saved || 0);
+        });
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  // 按指定用户清空生词记录（保留用户账号，并留下网络查询缓存）
   async function clearWordsForUser(userId, userName) {
-    if (!confirm(`确定清空用户「${userName}」的所有单词记录吗？此操作不可恢复！`)) return;
+    if (!confirm(`确定清空用户「${userName}」的所有单词记录吗？生词、记住状态和备注会删除；已经通过网络查到的释义会保留，供所有用户直接使用。`)) return;
+
+    const savedCount = await archiveUserLookups(userId);
+    if (savedCount === null) {
+      if (wordsDataStatus) showStatus(wordsDataStatus, '保存网络查询结果失败，未清空生词', 'error');
+      return;
+    }
 
     const currentUserId = await getCurrentUserId();
     const userKey = `user_${userId}_`;
@@ -984,7 +1073,13 @@
     userData[`${userKey}wordNotes`] = [];
 
     chrome.storage.local.set(userData, () => {
-      if (wordsDataStatus) showStatus(wordsDataStatus, `已清空「${userName}」的单词记录`, 'success');
+      if (wordsDataStatus) {
+        showStatus(
+          wordsDataStatus,
+          `已清空「${userName}」的生词，并保留 ${savedCount} 条网络查询结果`,
+          'success'
+        );
+      }
       if (userId === currentUserId && typeof window.refreshVocabStats === 'function') {
         window.refreshVocabStats();
       }
@@ -1152,7 +1247,13 @@
     }
     
     // 确认删除
-    if (!confirm(`确定要删除用户 "${userName}" 吗？\n\n这将删除该用户的所有单词记录，此操作不可恢复！`)) {
+    if (!confirm(`确定要删除用户 "${userName}" 吗？\n\n生词记录会删除。已经通过网络查到的释义会保留，供其他用户直接使用。`)) {
+      return;
+    }
+
+    const savedCount = await archiveUserLookups(userId);
+    if (savedCount === null) {
+      showStatus(saveStatus, '保存网络查询结果失败，未删除用户', 'error');
       return;
     }
     

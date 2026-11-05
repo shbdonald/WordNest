@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WordNest 单词窝",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "WordNest（单词窝）：网页划词收词、离线词典与单词记忆",
   "permissions": [
   "storage",
@@ -14,8 +14,8 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "js": ["theme.js", "content.js"],
+      "css": ["themes.css", "content.css"],
       "run_at": "document_end"
     }
   ],

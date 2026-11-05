@@ -103,6 +103,70 @@
     offline: '离线词典'
   };
 
+  const EXTENSION_FETCH_HOSTS = new Set([
+    'api.dictionaryapi.dev',
+    'api.datamuse.com',
+    'dict.youdao.com',
+    'fanyi.youdao.com',
+    'translate.googleapis.com',
+    '3325.cn',
+    'api.mymemory.translated.net'
+  ]);
+
+  // 网页 CSP 会拦截内容脚本的 fetch，词典请求改走后台。
+  function extensionFetch(url, options) {
+    const timeoutMs = (options && options.timeoutMs) || 8000;
+    let parsed;
+    try {
+      parsed = new URL(String(url || ''));
+    } catch (e) {
+      return Promise.reject(new TypeError('Failed to fetch'));
+    }
+    if (parsed.protocol !== 'https:' || !EXTENSION_FETCH_HOSTS.has(parsed.hostname)) {
+      return Promise.reject(new TypeError('Failed to fetch'));
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const err = new Error('Request timeout');
+        err.name = 'AbortError';
+        reject(err);
+      }, timeoutMs + 800);
+      try {
+        chrome.runtime.sendMessage(
+          { action: 'proxyHttpGet', url: parsed.toString(), timeoutMs },
+          (res) => {
+            clearTimeout(timer);
+            if (chrome.runtime.lastError) {
+              reject(new TypeError(chrome.runtime.lastError.message || 'Failed to fetch'));
+              return;
+            }
+            if (!res || res.success === false) {
+              const message = (res && res.error) || 'Failed to fetch';
+              if (/timeout|abort/i.test(message)) {
+                const err = new Error('Request timeout');
+                err.name = 'AbortError';
+                reject(err);
+                return;
+              }
+              reject(new TypeError(message === 'Failed to fetch' ? 'Failed to fetch' : message));
+              return;
+            }
+            const text = typeof res.text === 'string' ? res.text : '';
+            resolve({
+              ok: !!res.ok,
+              status: res.status || 0,
+              text: async () => text,
+              json: async () => JSON.parse(text)
+            });
+          }
+        );
+      } catch (e) {
+        clearTimeout(timer);
+        reject(e);
+      }
+    });
+  }
+
   function chineseSourceLabel(code) {
     if (!code) return '';
     return CHINESE_SOURCE_LABELS[code] || String(code);
@@ -614,10 +678,7 @@
     const startedAt = Date.now();
     try {
       const url = `https://dict.youdao.com/jsonapi?q=${encodeURIComponent(text)}`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
-      const resp = await fetch(url, { method: 'GET', mode: 'cors', signal: controller.signal });
-      clearTimeout(timeoutId);
+      const resp = await extensionFetch(url, { timeoutMs: 4500 });
       if (!resp.ok) throw new Error(`http_${resp.status}`);
       const data = await resp.json();
       const parsed = parseYoudaoJsonapiToDict(text, data);
@@ -650,10 +711,7 @@
     const startedAt = Date.now();
     try {
       const url = `https://3325.cn/api/word/${encodeURIComponent(text)}`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
-      const resp = await fetch(url, { method: 'GET', mode: 'cors', signal: controller.signal });
-      clearTimeout(timeoutId);
+      const resp = await extensionFetch(url, { timeoutMs: 4500 });
       if (!resp.ok) throw new Error(`http_${resp.status}`);
       const json = await resp.json();
       const data = json && json.data ? json.data : null;
@@ -739,10 +797,55 @@
     };
   }
 
+  function isSingleLookupWord(text) {
+    const value = String(text || '').trim();
+    return !!value && !/\s/.test(value) && /^[A-Za-z][A-Za-z'-]{0,63}$/.test(value);
+  }
+
+  function readSharedLookup(word) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ action: 'getSharedLookup', word }, (res) => {
+          if (chrome.runtime.lastError || !res || !res.success) {
+            resolve(null);
+            return;
+          }
+          resolve(res.entry || null);
+        });
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  function writeSharedLookup(word, patch) {
+    if (!isSingleLookupWord(word) || !patch) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({
+          action: 'putSharedLookup',
+          word,
+          dict: patch.dict || null,
+          translation: patch.translation || '',
+          translationSource: patch.translationSource || ''
+        }, () => resolve());
+      } catch (e) {
+        resolve();
+      }
+    });
+  }
+
   async function persistWordDictionaryData(word, dictData) {
     if (!word || !dictData) return;
     const lowerWord = word.toLowerCase();
     wordDictionaryData.set(lowerWord, dictData);
+    if (isLookupSettled(dictData) || dictData.lookupFullChainTried === true) {
+      writeSharedLookup(word, {
+        dict: dictData,
+        translation: dictData.translation || wordChineseTranslations.get(lowerWord) || '',
+        translationSource: dictData.translationSource || wordChineseSources.get(lowerWord) || ''
+      });
+    }
     try {
       const currentUserId = await getCurrentUserId();
       const userKey = `user_${currentUserId}_`;
@@ -956,6 +1059,22 @@
       return cached;
     }
 
+    if (isSingleLookupWord(word)) {
+      const shared = await readSharedLookup(lowerWord);
+      if (shared && shared.dict && isLookupSettled(shared.dict)) {
+        wordDictionaryData.set(lowerWord, shared.dict);
+        if (shared.translation) {
+          wordChineseTranslations.set(lowerWord, shared.translation);
+          wordTranslations.set(lowerWord, shared.translation);
+          if (shared.translationSource) setChineseSource(lowerWord, shared.translationSource);
+        }
+        try {
+          wordSourceMap.set(lowerWord, shared.dict.sourceAbbr || (isLookupMiss(shared.dict) ? 'miss' : 'api'));
+        } catch (e) {}
+        return shared.dict;
+      }
+    }
+
     if (!AUTO_API_ENRICH) {
       if (cached) {
         try { wordSourceMap.set(lowerWord, cached.sourceAbbr || 'local'); } catch (e) {}
@@ -1048,7 +1167,7 @@
       try {
         const dmStarted = Date.now();
         const dmUrl = `https://api.datamuse.com/words?sp=${encodeURIComponent(lowerQuery || word)}&md=d&max=1`;
-        const dmResp = await fetch(dmUrl, { method: 'GET', mode: 'cors' });
+        const dmResp = await extensionFetch(dmUrl, { timeoutMs: 8000 });
         if (dmResp.ok) {
           const dmText = await dmResp.text();
           const dmJson = dmText && dmText.trim() ? JSON.parse(dmText) : null;
@@ -1136,20 +1255,9 @@
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
           const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(variant)}`;
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
 
           try {
-            const response = await fetch(url, {
-              method: 'GET',
-              mode: 'cors',
-              headers: {
-                'User-Agent': 'Mozilla/5.0'
-              },
-              signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
+            const response = await extensionFetch(url, { timeoutMs: 5000 });
 
             if (!response.ok) {
               fdLastError = `http_${response.status}`;
@@ -1218,7 +1326,6 @@
             gotResult = true;
             break;
           } catch (fetchError) {
-            clearTimeout(timeoutId);
             if (fetchError.name === 'AbortError') {
               throw new Error('Request timeout');
             }
@@ -1256,7 +1363,7 @@
       for (let di = 0; di < dmQueries.length; di++) {
         const q = dmQueries[di];
         const dmUrl = `https://api.datamuse.com/words?sp=${encodeURIComponent(q)}&md=d&max=1`;
-        const dmResp = await fetch(dmUrl, { method: 'GET', mode: 'cors' });
+        const dmResp = await extensionFetch(dmUrl, { timeoutMs: 8000 });
         if (!dmResp.ok) continue;
         const dmText = await dmResp.text();
         const dmJson = dmText && dmText.trim() ? JSON.parse(dmText) : null;
@@ -1391,21 +1498,9 @@
     try {
       // Google Translate API 使用 dt=rm 参数可以获取音标
       const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=en&dt=rm&q=${encodeURIComponent(word)}`;
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒超时
-      
+
       try {
-        const response = await fetch(url, {
-          method: 'GET',
-          mode: 'cors',
-          headers: {
-            'User-Agent': 'Mozilla/5.0'
-          },
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
+        const response = await extensionFetch(url, { timeoutMs: 2000 });
         
         if (!response.ok) {
           return null;
@@ -1422,10 +1517,6 @@
         }
         return null;
       } catch (fetchError) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          return null;
-        }
         return null;
       }
     } catch (error) {
@@ -1588,20 +1679,8 @@
         `&sl=${encodeURIComponent(sourceLang)}&tl=${encodeURIComponent(targetLang)}` +
         `&dt=t&q=${encodeURIComponent(text)}`;
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
       try {
-        const response = await fetch(url, {
-          method: 'GET',
-          mode: 'cors',
-          headers: {
-            'User-Agent': 'Mozilla/5.0'
-          },
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
+        const response = await extensionFetch(url, { timeoutMs });
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -1616,7 +1695,6 @@
         }
         throw new Error('Invalid response format');
       } catch (fetchError) {
-        clearTimeout(timeoutId);
         if (fetchError.name === 'AbortError') {
           throw new Error('Request timeout');
         }
@@ -1663,19 +1741,9 @@
   async function translateWordToChineseMyMemory(word) {
     try {
       const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh`;
-      
-      // 添加超时机制（3秒）
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      
+
       try {
-        const response = await fetch(url, {
-          method: 'GET',
-          mode: 'cors',
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
+        const response = await extensionFetch(url, { timeoutMs: 3000 });
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -1688,7 +1756,6 @@
         }
         throw new Error('Invalid response format');
       } catch (fetchError) {
-        clearTimeout(timeoutId);
         if (fetchError.name === 'AbortError') {
           throw new Error('Request timeout');
         }
@@ -3465,19 +3532,9 @@
     };
 
     const fetchJson = async (url, timeoutMs) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const response = await fetch(url, {
-          method: 'GET',
-          mode: 'cors',
-          signal: controller.signal
-        });
-        if (!response.ok) throw new Error(`http_${response.status}`);
-        return await response.json();
-      } finally {
-        clearTimeout(timeoutId);
-      }
+      const response = await extensionFetch(url, { timeoutMs });
+      if (!response.ok) throw new Error(`http_${response.status}`);
+      return await response.json();
     };
 
     // 1) 词典 suggest（适合单词）
@@ -3733,6 +3790,18 @@
   // 多引擎翻译：按测速保存的 translateOrder 依次尝试
   async function translateWordToChinese(word) {
     const lowerWord = String(word || '').toLowerCase();
+    if (isSingleLookupWord(word)) {
+      const shared = await readSharedLookup(lowerWord);
+      const sharedText = shared && String(shared.translation || '').trim();
+      if (sharedText && sharedText !== '翻译失败' && sharedText !== '翻译失败，请检查网络') {
+        const sourceAbbr = shared.translationSource || (shared.dict && shared.dict.translationSource) || '';
+        if (sourceAbbr) {
+          wordSourceMap.set(lowerWord, sourceAbbr);
+          setChineseSource(lowerWord, sourceAbbr);
+        }
+        return sharedText;
+      }
+    }
     const routeCfg = await getApiRouteConfig();
 
     const engines = {
@@ -3793,6 +3862,13 @@
           const sourceAbbr = got.source || attempts[i].name;
           wordSourceMap.set(lowerWord, sourceAbbr);
           setChineseSource(lowerWord, sourceAbbr);
+          if (isSingleLookupWord(word) && sourceAbbr && sourceAbbr !== 'ecd' && sourceAbbr !== 'offline') {
+            writeSharedLookup(word, {
+              dict: wordDictionaryData.get(lowerWord) || null,
+              translation: text,
+              translationSource: sourceAbbr
+            });
+          }
           return text;
         }
       } catch (error) {
@@ -4316,9 +4392,19 @@
     if (sourceParts.length) {
       tooltipHTML += `<div class="vocab-tooltip-footer">来源：${sourceParts.join(' · ')}</div>`;
     }
+    tooltipHTML += `<button type="button" class="vocab-tooltip-detail">查看详情</button>`;
 
     tooltip.innerHTML = tooltipHTML;
     
+    const detailBtn = tooltip.querySelector('.vocab-tooltip-detail');
+    if (detailBtn) {
+      detailBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showPageWordDetail(word, translation);
+      });
+    }
+
     // 绑定发音按钮事件
     const pronounceBtns = tooltip.querySelectorAll('.vocab-tooltip-pronounce');
     pronounceBtns.forEach(btn => {
@@ -4430,6 +4516,158 @@
       return tooltip;
     });
   };
+
+  function escapeDetailHtml(text) {
+    return String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderPageWordDetailBody(word, dictData, fallbackTranslation, loading) {
+    const lower = String(word || '').toLowerCase();
+    const zhMeanings = extractZhMeanings(dictData);
+    const enMeanings = englishOnlyMeanings(dictData && dictData.meanings);
+    const translation = (dictData && dictData.translation) || fallbackTranslation || '';
+    const phonetic = (dictData && dictData.phonetics || []).find((p) => p && p.text);
+    const phoneticText = phonetic && phonetic.text ? String(phonetic.text).trim() : '';
+    const zhSrc = (dictData && (dictData.translationSource || dictData.zhSourceAbbr))
+      || wordChineseSources.get(lower)
+      || '';
+    const zhLabel = chineseSourceLabel(zhSrc);
+    const enSrc = (dictData && (dictData.enSourceAbbr || dictData.sourceAbbr)) || '';
+    const enLabel = chineseSourceLabel(enSrc) || (enSrc === 'fd' ? 'Free Dictionary' : (enSrc === 'datamuse' ? 'Datamuse' : ''));
+    const note = wordNotes.get(lower) || '';
+
+    let html = `<div class="vocab-word-detail-phonetic">`;
+    html += phoneticText
+      ? `<span>/${escapeDetailHtml(phoneticText)}/</span>`
+      : `<span class="muted">暂无音标</span>`;
+    html += `<button type="button" class="vocab-word-detail-speak" data-type="1">英</button>`;
+    html += `<button type="button" class="vocab-word-detail-speak" data-type="2">美</button>`;
+    html += `</div>`;
+
+    if (dictData && dictData.usage) {
+      html += `<div class="vocab-word-detail-usage">用法：${escapeDetailHtml(dictData.usage)}</div>`;
+    }
+
+    html += `<div class="vocab-word-detail-section">中文释义${zhLabel ? ` · ${escapeDetailHtml(zhLabel)}` : ''}</div>`;
+    if (zhMeanings.length) {
+      zhMeanings.forEach((meaning) => {
+        if (meaning.partOfSpeech) {
+          html += `<div class="vocab-word-detail-pos">${escapeDetailHtml(meaning.partOfSpeech)}</div>`;
+        }
+        (meaning.definitions || []).slice(0, 6).forEach((def, index) => {
+          html += `<div class="vocab-word-detail-def">${index + 1}. ${escapeDetailHtml(def.definition || '')}</div>`;
+          if (def.example) {
+            html += `<div class="vocab-word-detail-example">${escapeDetailHtml(def.example)}</div>`;
+          }
+        });
+      });
+    } else if (translation) {
+      html += `<div class="vocab-word-detail-def">${escapeDetailHtml(translation)}</div>`;
+    } else {
+      html += `<div class="vocab-word-detail-empty">暂无中文释义</div>`;
+    }
+
+    html += `<div class="vocab-word-detail-section">英英释义${enLabel ? ` · ${escapeDetailHtml(enLabel)}` : ''}</div>`;
+    if (enMeanings.length) {
+      enMeanings.forEach((meaning) => {
+        if (meaning.partOfSpeech) {
+          html += `<div class="vocab-word-detail-pos">${escapeDetailHtml(meaning.partOfSpeech)}</div>`;
+        }
+        (meaning.definitions || []).slice(0, 3).forEach((def, index) => {
+          html += `<div class="vocab-word-detail-def">${index + 1}. ${escapeDetailHtml(def.definition || '')}</div>`;
+          if (def.example) {
+            html += `<div class="vocab-word-detail-example">${escapeDetailHtml(def.example)}</div>`;
+          }
+        });
+      });
+    } else if (loading) {
+      html += `<div class="vocab-word-detail-empty">正在补全详情...</div>`;
+    } else {
+      html += `<div class="vocab-word-detail-empty">暂无英文释义</div>`;
+    }
+
+    if (note && String(note).trim()) {
+      html += `<div class="vocab-word-detail-note">备注：${escapeDetailHtml(note)}</div>`;
+    }
+    return html;
+  }
+
+  function showPageWordDetail(word, fallbackTranslation) {
+    const cleanWord = String(word || '').trim();
+    if (!cleanWord) return;
+
+    const existing = document.querySelector('.vocab-word-detail-overlay');
+    if (existing && typeof existing._closeDetail === 'function') existing._closeDetail();
+    else if (existing) existing.remove();
+    removeTooltip();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'vocab-word-detail-overlay';
+    overlay.innerHTML = `
+      <div class="vocab-word-detail-dialog" role="dialog" aria-modal="true">
+        <div class="vocab-word-detail-header">
+          <span class="vocab-word-detail-title"></span>
+          <button type="button" class="vocab-word-detail-close" title="关闭">×</button>
+        </div>
+        <div class="vocab-word-detail-body"></div>
+      </div>
+    `;
+    const titleEl = overlay.querySelector('.vocab-word-detail-title');
+    const bodyEl = overlay.querySelector('.vocab-word-detail-body');
+    const closeBtn = overlay.querySelector('.vocab-word-detail-close');
+    titleEl.textContent = cleanWord;
+
+    const close = () => {
+      document.removeEventListener('keydown', onKey, true);
+      if (overlay.parentNode) overlay.remove();
+    };
+    overlay._closeDetail = close;
+    const onKey = (e) => {
+      if (e.key === 'Escape') close();
+    };
+
+    const paint = (dictData, loading) => {
+      if (!bodyEl || !overlay.isConnected) return;
+      bodyEl.innerHTML = renderPageWordDetailBody(cleanWord, dictData, fallbackTranslation, loading);
+      bodyEl.querySelectorAll('.vocab-word-detail-speak').forEach((btn) => {
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const type = parseInt(btn.getAttribute('data-type'), 10) || 2;
+          speakWord(cleanWord, type);
+        });
+      });
+    };
+
+    closeBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      close();
+    });
+    overlay.addEventListener('click', (ev) => {
+      if (ev.target === overlay) close();
+    });
+    document.addEventListener('keydown', onKey, true);
+    document.documentElement.appendChild(overlay);
+
+    const lower = cleanWord.toLowerCase();
+    let dictData = wordDictionaryData.get(lower) || null;
+    const needsFetch = !isLookupSettled(dictData);
+    paint(dictData, needsFetch);
+    if (!needsFetch) return;
+
+    fetchDictionaryInfo(cleanWord).then((fetched) => {
+      if (!overlay.isConnected) return;
+      paint(fetched || wordDictionaryData.get(lower) || dictData, false);
+    }).catch(() => {
+      if (!overlay.isConnected) return;
+      paint(wordDictionaryData.get(lower) || dictData, false);
+    });
+  }
 
   // 网页内备注悬浮窗（替代 prompt）
   function showVocabNoteDialog(noteWord, currentNote) {
@@ -4580,7 +4818,8 @@
                   parent.classList.contains('vocab-tooltip') ||
                   parent.classList.contains('vocab-sentence-popup') ||
                   parent.classList.contains('vocab-popup-full') ||
-                  parent.classList.contains('vocab-translation-popup')
+                  parent.classList.contains('vocab-translation-popup') ||
+                  parent.classList.contains('vocab-word-detail-overlay')
                 ) {
                   return NodeFilter.FILTER_REJECT;
                 }
@@ -4922,14 +5161,33 @@
   }
 
   // ================= 划句翻译（按地区选引擎 → 自有悬浮窗，不写入词库） =================
+  // sentenceTranslateMode: 'auto' 松开即译 | 'button' 先出浮动按钮，点击后再译
+  let sentenceTranslateMode = 'auto';
   let currentSentencePopup = null;
+  let currentSentenceButton = null;
+  let sentenceButtonPayload = null;
   let sentenceTranslateToken = 0;
+
+  function applySentenceTranslateMode(value) {
+    sentenceTranslateMode = value === 'button' ? 'button' : 'auto';
+  }
+
+  function loadSentenceTranslateMode() {
+    try {
+      chrome.storage.local.get(['sentenceTranslateMode'], (result) => {
+        applySentenceTranslateMode(result && result.sentenceTranslateMode);
+      });
+    } catch (e) {
+      sentenceTranslateMode = 'auto';
+    }
+  }
+  loadSentenceTranslateMode();
 
   function isEditableOrOurUi(el) {
     if (!el || !el.closest) return false;
     return !!el.closest(
       'input, textarea, select, [contenteditable="true"], [contenteditable=""], ' +
-      '.vocab-sentence-popup, .vocab-popup-full, .vocab-tooltip'
+      '.vocab-sentence-popup, .vocab-sentence-btn, .vocab-popup-full, .vocab-tooltip, .vocab-word-detail-overlay'
     );
   }
 
@@ -4955,6 +5213,69 @@
       currentSentencePopup.parentNode.removeChild(currentSentencePopup);
     }
     currentSentencePopup = null;
+  }
+
+  function removeSentenceTranslateButton() {
+    if (currentSentenceButton && currentSentenceButton.parentNode) {
+      currentSentenceButton.parentNode.removeChild(currentSentenceButton);
+    }
+    currentSentenceButton = null;
+    sentenceButtonPayload = null;
+  }
+
+  function positionSentenceButton(btn, anchorRect) {
+    const margin = 8;
+    const rect = anchorRect || {
+      left: window.innerWidth / 2,
+      right: window.innerWidth / 2,
+      top: 80,
+      bottom: 100
+    };
+    btn.style.visibility = 'hidden';
+    btn.style.display = 'block';
+    const bw = btn.offsetWidth || 56;
+    const bh = btn.offsetHeight || 28;
+
+    let left = rect.right - bw;
+    let top = rect.top - bh - 6;
+    if (top < margin) top = rect.bottom + 6;
+    if (top + bh > window.innerHeight - margin) top = window.innerHeight - bh - margin;
+    if (left + bw > window.innerWidth - margin) left = window.innerWidth - bw - margin;
+    if (left < margin) left = margin;
+
+    btn.style.left = `${Math.round(left)}px`;
+    btn.style.top = `${Math.round(top)}px`;
+    btn.style.visibility = 'visible';
+  }
+
+  function showSentenceTranslateButton(rawText, anchorRect) {
+    const text = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+    if (!text) return;
+
+    removeSentenceTranslatePopup();
+    removeSentenceTranslateButton();
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'vocab-sentence-btn';
+    btn.textContent = '翻译';
+    btn.title = '翻译选中内容';
+    document.documentElement.appendChild(btn);
+    currentSentenceButton = btn;
+    sentenceButtonPayload = { text, anchorRect };
+    positionSentenceButton(btn, anchorRect);
+
+    btn.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+    });
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const payload = sentenceButtonPayload;
+      removeSentenceTranslateButton();
+      if (payload) showSentenceTranslatePopup(payload.text, payload.anchorRect);
+    });
   }
 
   function positionSentencePopup(popup, anchorRect) {
@@ -4988,6 +5309,7 @@
     const text = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 500);
     if (!text) return;
 
+    removeSentenceTranslateButton();
     removeSentenceTranslatePopup();
     const token = ++sentenceTranslateToken;
 
@@ -5030,43 +5352,60 @@
 
   // 双击事件处理（双击选中的单词自动收藏，不显示弹窗）
   document.addEventListener('dblclick', async (e) => {
+    removeSentenceTranslateButton();
     removeSentenceTranslatePopup();
     await handleWordSelectionAndSave(e);
   });
 
   // 松开鼠标：
   // - Ctrl + 选词：仍按单词收藏
-  // - 普通划选整句/短语：Google 翻译悬浮窗（不收藏）
+  // - 普通划选整句/短语：按设置自动翻译，或先显示浮动按钮
   document.addEventListener('mouseup', async (e) => {
     if (e.button !== 0) return;
+    if (e.target && e.target.closest && e.target.closest('.vocab-sentence-btn')) return;
 
     const selection = window.getSelection();
     const selectedText = selection ? selection.toString().trim() : '';
     if (!selectedText) return;
 
     if (e.ctrlKey) {
+      removeSentenceTranslateButton();
       await handleWordSelectionAndSave(e);
       return;
     }
 
     if (isEditableOrOurUi(e.target)) return;
-    if (!isSentenceSelection(selectedText)) return;
+    if (!isSentenceSelection(selectedText)) {
+      removeSentenceTranslateButton();
+      return;
+    }
 
     const anchorRect = getSelectionAnchorRect();
+    const mode = sentenceTranslateMode;
     // 稍延迟，避免和页面自身的 mouseup 逻辑抢选区
     setTimeout(() => {
-      showSentenceTranslatePopup(selectedText, anchorRect);
+      if (mode === 'button') {
+        showSentenceTranslateButton(selectedText, anchorRect);
+      } else {
+        removeSentenceTranslateButton();
+        showSentenceTranslatePopup(selectedText, anchorRect);
+      }
     }, 10);
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') removeSentenceTranslatePopup();
+    if (e.key === 'Escape') {
+      removeSentenceTranslateButton();
+      removeSentenceTranslatePopup();
+    }
   });
 
   document.addEventListener('mousedown', (e) => {
-    if (!currentSentencePopup) return;
-    if (e.target && e.target.closest && e.target.closest('.vocab-sentence-popup')) return;
-    removeSentenceTranslatePopup();
+    const target = e.target;
+    const inPopup = target && target.closest && target.closest('.vocab-sentence-popup');
+    const inButton = target && target.closest && target.closest('.vocab-sentence-btn');
+    if (currentSentencePopup && !inPopup) removeSentenceTranslatePopup();
+    if (currentSentenceButton && !inButton) removeSentenceTranslateButton();
   }, true);
 
   // 接收 background 发送的“右键菜单添加生词”消息
@@ -5265,6 +5604,11 @@
       }
       
       // 如果切换用户，重新加载并刷新标记
+      if (changes.sentenceTranslateMode) {
+        applySentenceTranslateMode(changes.sentenceTranslateMode.newValue);
+        removeSentenceTranslateButton();
+      }
+
       if (changes.currentUserId) {
         // 先清除所有现有标记
         const existingMarkers = document.querySelectorAll('.vocab-word-marker');

@@ -1392,6 +1392,39 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  function readSharedLookup(word) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ action: 'getSharedLookup', word }, (res) => {
+          if (chrome.runtime.lastError || !res || !res.success) {
+            resolve(null);
+            return;
+          }
+          resolve(res.entry || null);
+        });
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  function writeSharedLookup(word, dictData) {
+    if (!word || !dictData) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({
+          action: 'putSharedLookup',
+          word,
+          dict: dictData,
+          translation: dictData.translation || '',
+          translationSource: dictData.translationSource || ''
+        }, () => resolve());
+      } catch (e) {
+        resolve();
+      }
+    });
+  }
+
   async function saveWordDictionaryData(word, dictData) {
     const currentUserId = await getCurrentUserId();
     const userKey = `user_${currentUserId}_`;
@@ -1406,6 +1439,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const payload = {};
     payload[key] = Array.from(map.entries());
     await new Promise((resolve) => chrome.storage.local.set(payload, resolve));
+    if (isLookupSettled(dictData) || dictData.lookupFullChainTried === true) {
+      await writeSharedLookup(word, dictData);
+    }
   }
 
   function sanitizeApiKey(key) {
@@ -1814,6 +1850,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function fetchChineseTranslationForLookup(word) {
+    const shared = await readSharedLookup(word);
+    const sharedText = shared && String(shared.translation || '').trim();
+    if (sharedText && sharedText !== '翻译失败' && sharedText !== '翻译失败，请检查网络') {
+      return { text: sharedText, source: shared.translationSource || '' };
+    }
     const route = await getApiRouteConfig();
 
     const tryYoudao = async () => {
@@ -2072,8 +2113,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const chineseSources = new Map(result[`${userKey}wordChineseSources`] || []);
     const lower = word.toLowerCase();
     let dictData = dictMap.get(word) || dictMap.get(lower) || null;
-    const translation = fallbackTranslation || translations.get(word) || translations.get(lower) || '';
-    const chineseSourceCode = chineseSources.get(word) || chineseSources.get(lower) || '';
+    let translation = fallbackTranslation || translations.get(word) || translations.get(lower) || '';
+    let chineseSourceCode = chineseSources.get(word) || chineseSources.get(lower) || '';
+    if (!forceRefresh && !isLookupSettled(dictData)) {
+      const shared = await readSharedLookup(word);
+      if (shared && shared.dict && isLookupSettled(shared.dict)) {
+        dictData = shared.dict;
+      }
+      if (shared && shared.translation && !String(translation || '').trim()) {
+        translation = shared.translation;
+        chineseSourceCode = chineseSourceCode || shared.translationSource || '';
+      }
+    }
 
     // 旧 miss 且无英英：清标记后重试（修复被 offline 短路导致的错误缓存）
     if (dictData && isLookupMiss(dictData) && !hasEnglishDefinitions(dictData) &&

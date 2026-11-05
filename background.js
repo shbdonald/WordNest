@@ -1159,6 +1159,220 @@ async function lookupWordWithDeepseek(word) {
   }
 }
 
+// 内容脚本里的 fetch 会受网页 CSP 限制（Failed to fetch）。这些词典/翻译域名改由后台请求。
+const PROXY_HTTP_HOSTS = new Set([
+  'api.dictionaryapi.dev',
+  'api.datamuse.com',
+  'dict.youdao.com',
+  'fanyi.youdao.com',
+  'translate.googleapis.com',
+  '3325.cn',
+  'api.mymemory.translated.net'
+]);
+
+async function proxyHttpGet(url, timeoutMs) {
+  let parsed;
+  try {
+    parsed = new URL(String(url || ''));
+  } catch (e) {
+    return { success: false, error: 'invalid_url' };
+  }
+  if (parsed.protocol !== 'https:' || !PROXY_HTTP_HOSTS.has(parsed.hostname)) {
+    return { success: false, error: 'host_not_allowed' };
+  }
+  const ms = Math.min(15000, Math.max(1000, Number(timeoutMs) || 8000));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    const response = await fetch(parsed.toString(), {
+      method: 'GET',
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+    const text = await response.text();
+    return { success: true, ok: response.ok, status: response.status, text };
+  } catch (e) {
+    const aborted = !!(e && (e.name === 'AbortError' || /abort/i.test(String(e.message || ''))));
+    return { success: false, error: aborted ? 'timeout' : 'Failed to fetch' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// 跨用户查询缓存：清空生词本时保留，任意用户再查同一词直接复用。
+const SHARED_LOOKUP_KEY = 'sharedLookupCache';
+const SHARED_ONLINE_SOURCES = new Set([
+  'fd', 'datamuse', 'youdao', 'youdao_dict', 'd3325', 'gt', 'bd', 'mm',
+  'deepseek', 'google', 'api', 'wordsapi', 'bing'
+]);
+
+let sharedLookupWriteChain = Promise.resolve();
+
+function withSharedLookupWrite(task) {
+  const run = sharedLookupWriteChain.then(task, task);
+  sharedLookupWriteChain = run.then(() => {}, () => {});
+  return run;
+}
+
+function sharedIsMostlyChinese(text) {
+  const t = String(text || '').trim();
+  if (!t) return false;
+  const cjk = (t.match(/[\u4e00-\u9fff]/g) || []).length;
+  return (cjk / t.length) >= 0.35;
+}
+
+function sharedHasEnglish(dict) {
+  if (!dict || !Array.isArray(dict.meanings)) return false;
+  return dict.meanings.some((meaning) =>
+    (meaning.definitions || []).some((def) => {
+      const text = String(def && def.definition || '').trim();
+      return text.length >= 6 && !sharedIsMostlyChinese(text);
+    })
+  );
+}
+
+function sharedIsOnlineSource(code) {
+  return SHARED_ONLINE_SOURCES.has(String(code || '').toLowerCase());
+}
+
+function sharedCollectSources(dict) {
+  if (!dict || typeof dict !== 'object') return [];
+  const codes = [];
+  ['sourceAbbr', 'translationSource', 'enSourceAbbr', 'zhSourceAbbr'].forEach((key) => {
+    if (dict[key]) codes.push(dict[key]);
+  });
+  if (Array.isArray(dict.sources)) codes.push(...dict.sources);
+  (dict.phonetics || []).forEach((item) => {
+    if (item && item.source) codes.push(item.source);
+  });
+  return codes;
+}
+
+function sharedIsSettledDict(dict) {
+  if (!dict) return false;
+  if (sharedHasEnglish(dict) && (dict.detailCached === true || sharedIsOnlineSource(dict.sourceAbbr))) return true;
+  if (dict.lookupMiss === true && sharedHasEnglish(dict)) return true;
+  if (dict.lookupMiss === true && dict.lookupFullChainTried === true) return true;
+  return false;
+}
+
+function sharedWorthKeeping(dict, translation, translationSource) {
+  if (sharedCollectSources(dict).some(sharedIsOnlineSource)) return true;
+  if (dict && dict.detailCached === true && sharedIsOnlineSource(dict.sourceAbbr)) return true;
+  if (dict && dict.lookupFullChainTried === true) return true;
+  if (sharedIsOnlineSource(translationSource) && String(translation || '').trim()) return true;
+  return false;
+}
+
+function sharedPickDict(prev, next) {
+  if (!next) return prev || null;
+  if (!prev) return next;
+  const prevGood = sharedHasEnglish(prev) && prev.lookupMiss !== true;
+  const nextGood = sharedHasEnglish(next) && next.lookupMiss !== true;
+  if (nextGood && !prevGood) return next;
+  if (prevGood && !nextGood) return prev;
+  if (next.lookupMiss === true && prev.lookupMiss !== true && (prev.translation || sharedHasEnglish(prev))) {
+    return prev;
+  }
+  const prevCount = Array.isArray(prev.meanings) ? prev.meanings.length : 0;
+  const nextCount = Array.isArray(next.meanings) ? next.meanings.length : 0;
+  if (nextCount > prevCount) return next;
+  if (prevCount > nextCount) return prev;
+  return next;
+}
+
+function loadSharedLookupMap() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([SHARED_LOOKUP_KEY], (result) => {
+      const raw = result && result[SHARED_LOOKUP_KEY];
+      resolve(new Map(Array.isArray(raw) ? raw : []));
+    });
+  });
+}
+
+function saveSharedLookupMap(map) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [SHARED_LOOKUP_KEY]: Array.from(map.entries()) }, () => resolve());
+  });
+}
+
+async function mergeSharedLookup(word, patch) {
+  const lower = String(word || '').trim().toLowerCase();
+  if (!lower || !patch) return false;
+  const dict = patch.dict || null;
+  const translation = String(patch.translation || (dict && dict.translation) || '').trim();
+  const translationSource = String(
+    patch.translationSource || (dict && dict.translationSource) || ''
+  ).trim();
+  if (!sharedWorthKeeping(dict, translation, translationSource)) return false;
+
+  const map = await loadSharedLookupMap();
+  const prev = map.get(lower) || null;
+  const nextDict = sharedPickDict(prev && prev.dict, dict);
+  const prevTranslation = String((prev && prev.translation) || '').trim();
+  const nextTranslation = translation || String((nextDict && nextDict.translation) || '').trim() || prevTranslation;
+  let nextSource = translationSource;
+  if (!nextSource && nextDict && nextDict.translationSource) nextSource = nextDict.translationSource;
+  if (!nextTranslation) nextSource = (prev && prev.translationSource) || '';
+  else if (!nextSource) nextSource = (prev && prev.translationSource) || '';
+  map.set(lower, {
+    dict: nextDict,
+    translation: nextTranslation,
+    translationSource: nextSource,
+    cachedAt: Date.now()
+  });
+  await saveSharedLookupMap(map);
+  return true;
+}
+
+async function getSharedLookup(word) {
+  const lower = String(word || '').trim().toLowerCase();
+  if (!lower || /\s/.test(lower)) return null;
+  const map = await loadSharedLookupMap();
+  return map.get(lower) || null;
+}
+
+async function archiveUserLookups(userId) {
+  const userKey = `user_${String(userId || 'default')}_`;
+  const stored = await new Promise((resolve) => {
+    chrome.storage.local.get([
+      `${userKey}wordDictionaryData`,
+      `${userKey}wordChineseTranslations`,
+      `${userKey}wordChineseSources`,
+      `${userKey}wordTranslations`
+    ], resolve);
+  });
+  const dicts = new Map(stored[`${userKey}wordDictionaryData`] || []);
+  const chinese = new Map(stored[`${userKey}wordChineseTranslations`] || []);
+  const sources = new Map(stored[`${userKey}wordChineseSources`] || []);
+  const translations = new Map(stored[`${userKey}wordTranslations`] || []);
+  const words = new Set();
+  [dicts, chinese, sources, translations].forEach((map) => {
+    map.forEach((_value, key) => words.add(String(key || '').toLowerCase()));
+  });
+  const valueFor = (map, lower) => {
+    if (map.has(lower)) return map.get(lower);
+    for (const [key, value] of map) {
+      if (String(key || '').toLowerCase() === lower) return value;
+    }
+    return null;
+  };
+  let saved = 0;
+  for (const lower of words) {
+    if (!lower) continue;
+    const dict = valueFor(dicts, lower);
+    const translation = String(
+      valueFor(chinese, lower) || valueFor(translations, lower) || (dict && dict.translation) || ''
+    ).trim();
+    const translationSource = String(
+      valueFor(sources, lower) || (dict && dict.translationSource) || ''
+    ).trim();
+    const kept = await mergeSharedLookup(lower, { dict, translation, translationSource });
+    if (kept) saved += 1;
+  }
+  return saved;
+}
+
 // 监听消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // 所有异步操作都需要返回 true 以保持消息通道开放
@@ -1318,6 +1532,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
+  if (request.action === 'getSharedLookup') {
+    getSharedLookup(request.word)
+      .then((entry) => safeSendResponse({ success: true, entry: entry || null }))
+      .catch((error) => safeSendResponse({ success: false, error: (error && error.message) || 'failed', entry: null }));
+    return true;
+  }
+
+  if (request.action === 'putSharedLookup') {
+    withSharedLookupWrite(() => mergeSharedLookup(request.word, {
+      dict: request.dict || null,
+      translation: request.translation || '',
+      translationSource: request.translationSource || ''
+    }))
+      .then((saved) => safeSendResponse({ success: true, saved: !!saved }))
+      .catch((error) => safeSendResponse({ success: false, error: (error && error.message) || 'failed' }));
+    return true;
+  }
+
+  if (request.action === 'archiveUserLookups') {
+    withSharedLookupWrite(() => archiveUserLookups(request.userId))
+      .then((saved) => safeSendResponse({ success: true, saved: saved || 0 }))
+      .catch((error) => safeSendResponse({ success: false, error: (error && error.message) || 'failed' }));
+    return true;
+  }
+
+  if (request.action === 'proxyHttpGet') {
+    proxyHttpGet(request.url, request.timeoutMs)
+      .then((result) => safeSendResponse(result))
+      .catch((error) => safeSendResponse({ success: false, error: (error && error.message) || 'Failed to fetch' }));
+    return true;
+  }
+
   // Ping 测试消息
   if (request.action === 'ping') {
     safeSendResponse({ success: true, message: 'pong', timestamp: Date.now() });

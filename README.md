@@ -6,7 +6,7 @@ Chrome / Edge（Chromium）浏览器扩展：在网页中双击或划词即可�
 |---|---|
 | 英文名 | **WordNest** |
 | 中文名 | **单词窝** |
-| 版本 | `3.0.0` |
+| 版本 | `3.1.0` |
 
 ---
 
@@ -85,7 +85,7 @@ Chrome / Edge（Chromium）浏览器扩展：在网页中双击或划词即可�
 ## 目录结构
 
 ```
-├── manifest.json          # 扩展清单（WordNest 单词窝 v3.0.0）
+├── manifest.json          # 扩展清单（WordNest 单词窝 v3.1.0）
 ├── background.js          # Service Worker：离线词典 IndexedDB、消息转发
 ├── content.js / .css      # 网页划词、标记、悬停
 ├── popup.html / .js       # 工具栏弹窗入口

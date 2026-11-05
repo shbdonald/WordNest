@@ -3,7 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <title>WordNest 单词窝</title>
+  <link rel="stylesheet" href="themes.css">
+  <script src="theme.js"></script>
   <style>
+    html[data-wn-theme] {
+      --brand: var(--wn-brand);
+      --brand-2: var(--wn-brand-2);
+      --brand-soft: var(--wn-brand-soft);
+      --ink: var(--wn-ink);
+      --muted: var(--wn-muted);
+      --line: var(--wn-line);
+      --surface: var(--wn-surface);
+      --surface-2: var(--wn-surface-2);
+    }
+
     :root {
       --brand: #667eea;
       --brand-2: #764ba2;
@@ -29,7 +42,7 @@
     body {
       font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
       color: var(--ink);
-      background: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
+      background: var(--wn-page, linear-gradient(145deg, #667eea 0%, #764ba2 100%));
       min-height: 100vh;
       padding: clamp(12px, 1.8vw, 28px);
       line-height: 1.45;
@@ -54,7 +67,7 @@
       align-items: center;
       gap: 16px 24px;
       padding: 14px 22px;
-      background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+      background: var(--wn-header, linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%));
       color: #fff;
     }
 
@@ -209,7 +222,7 @@
     #logsTab .pane-section {
       margin-bottom: 16px;
       padding: 16px 18px;
-      background: #f8f9fa;
+      background: var(--surface-2);
       border-radius: 10px;
       border-left: 4px solid var(--brand);
     }
@@ -217,7 +230,7 @@
     #settingsTab .pane-section-title {
       font-size: 16px;
       font-weight: 600;
-      color: #333;
+      color: var(--ink);
       margin-bottom: 14px;
     }
 
@@ -229,7 +242,7 @@
       display: block;
       font-size: 13px;
       font-weight: 500;
-      color: #555;
+      color: var(--muted);
       margin-bottom: 8px;
     }
 
@@ -242,7 +255,8 @@
       border-radius: 8px;
       font-size: 13px;
       font-family: inherit;
-      background: #fff;
+      background: var(--surface);
+      color: var(--ink);
     }
 
     #settingsTab input[type="text"]:focus,
@@ -265,14 +279,15 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       cursor: pointer;
-      background: #fff;
+      background: var(--surface);
+      color: var(--ink);
       transition: border-color 0.15s, background 0.15s;
     }
 
     #settingsTab .radio-option:hover,
     #settingsTab .radio-option.selected {
       border-color: var(--brand);
-      background: #f0f4ff;
+      background: var(--brand-soft);
     }
 
     #settingsTab .radio-option input[type="radio"] {
@@ -281,7 +296,7 @@
 
     #settingsTab .help-text {
       font-size: 12px;
-      color: #666;
+      color: var(--muted);
       margin-top: 8px;
       line-height: 1.5;
     }
@@ -346,7 +361,7 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       font-size: 13px;
-      color: #555;
+      color: var(--muted);
     }
 
     .api-log-stats .ok { color: #2e7d32; }
@@ -374,7 +389,7 @@
       flex-wrap: wrap;
       margin-bottom: 6px;
     }
-    #apiLogList .word { font-size: 15px; font-weight: 700; color: #333; }
+    #apiLogList .word { font-size: 15px; font-weight: 700; color: var(--ink); }
     #apiLogList .badge {
       font-size: 12px;
       padding: 2px 8px;
@@ -407,7 +422,7 @@
       flex-direction: column;
       flex: 0 0 168px;
       width: 168px;
-      background: #fbfbfe;
+      background: var(--surface-2);
       border-right: 1px solid var(--line);
       padding: 14px 10px;
       gap: 4px;
@@ -434,8 +449,8 @@
 
     .tab.active {
       color: var(--brand);
-      background: #fff;
-      box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.28);
+      background: var(--surface);
+      box-shadow: inset 0 0 0 1px var(--brand-soft);
     }
 
     .main-pane {
@@ -443,7 +458,7 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      background: #fff;
+      background: var(--surface);
     }
 
     .tab-content {
@@ -481,7 +496,7 @@
     }
 
     .btn-primary:hover {
-      background: #5a6fd6;
+      filter: brightness(0.92);
     }
 
     .btn-test {
@@ -490,7 +505,7 @@
     }
 
     .btn-test:hover {
-      background: #5568d3;
+      filter: brightness(0.92);
     }
 
     .btn-danger {
@@ -529,7 +544,8 @@
       font-size: 13px;
       font-family: inherit;
       outline: none;
-      background: #fff;
+      background: var(--surface);
+      color: var(--ink);
       transition: border-color 0.15s, box-shadow 0.15s;
     }
 
@@ -585,7 +601,7 @@
       padding: 6px 12px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: #fff;
+      background: var(--surface);
       font-size: 12px;
       color: var(--ink);
       cursor: pointer;
@@ -598,9 +614,9 @@
     }
 
     .word-sort-btn.active {
-      background: #1976d2;
-      border-color: #1976d2;
-      color: #fff;
+      background: var(--brand);
+      border-color: var(--brand);
+      color: var(--wn-on-brand, #fff);
       font-weight: 600;
     }
 
@@ -611,7 +627,7 @@
       border: 1px solid var(--line);
       border-radius: 10px;
       padding: 0;
-      background: #fff;
+      background: var(--surface);
     }
 
     .word-item {
@@ -621,7 +637,8 @@
       gap: 12px;
       padding: 11px 14px;
       margin: 0;
-      background: #fff;
+      background: var(--surface);
+      color: var(--ink);
       border-radius: 0;
       border-bottom: 1px solid var(--line);
       box-shadow: none;
@@ -658,7 +675,8 @@
     }
 
     .app-dialog {
-      background: #fff;
+      background: var(--surface);
+      color: var(--ink);
       border-radius: 14px;
       width: min(440px, 100%);
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
@@ -667,15 +685,15 @@
 
     .app-dialog-header {
       padding: 14px 18px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
+      background: var(--wn-header, linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%));
+      color: var(--wn-on-brand, #fff);
       font-size: 16px;
       font-weight: 600;
     }
 
     .app-dialog-body {
       padding: 18px;
-      color: #333;
+      color: var(--ink);
       font-size: 14px;
       line-height: 1.6;
       white-space: pre-wrap;
@@ -710,7 +728,8 @@
     }
 
     .word-detail-modal {
-      background: white;
+      background: var(--surface);
+      color: var(--ink);
       border-radius: 14px;
       width: min(720px, 100%);
       max-height: min(86vh, 920px);
@@ -725,7 +744,7 @@
       justify-content: space-between;
       align-items: center;
       padding: 16px 20px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: var(--wn-header, linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%));
       color: white;
     }
 
@@ -763,7 +782,7 @@
       flex-wrap: wrap;
       gap: 8px;
       font-size: 16px;
-      color: #666;
+      color: var(--muted);
       font-style: italic;
       margin-bottom: 10px;
       cursor: pointer;
@@ -815,7 +834,7 @@
     .word-detail-usage,
     .word-detail-translation {
       font-size: 14px;
-      color: #333;
+      color: var(--ink);
       margin-bottom: 12px;
       line-height: 1.5;
     }
@@ -837,13 +856,13 @@
 
     .word-detail-def-text {
       font-size: 14px;
-      color: #333;
+      color: var(--ink);
       line-height: 1.5;
     }
 
     .word-detail-example {
       font-size: 13px;
-      color: #666;
+      color: var(--muted);
       font-style: italic;
       margin-top: 4px;
     }
@@ -1063,7 +1082,7 @@
       gap: 10px;
       margin-top: 8px;
       font-size: 14px;
-      color: #555;
+      color: var(--muted);
     }
 
     .test-start-count select {
@@ -1236,7 +1255,7 @@
       height: 32px;
       border-radius: 50%;
       background: #f5f5f5;
-      color: #666;
+      color: var(--muted);
       font-weight: 600;
       margin-right: 12px;
       flex-shrink: 0;
@@ -1255,7 +1274,7 @@
     .option-text {
       flex: 1;
       font-size: 15px;
-      color: #333;
+      color: var(--ink);
       word-break: break-word;
     }
 
@@ -1387,7 +1406,7 @@
       justify-content: space-between;
       align-items: center;
       padding: 14px 18px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: var(--wn-header, linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%));
       color: white;
     }
 
@@ -1419,7 +1438,7 @@
       flex-wrap: wrap;
       gap: 8px;
       font-size: 16px;
-      color: #666;
+      color: var(--muted);
       font-style: italic;
       margin-bottom: 14px;
       cursor: pointer;
@@ -1467,19 +1486,19 @@
 
     .dict-def-text {
       font-size: 14px;
-      color: #333;
+      color: var(--ink);
       line-height: 1.5;
     }
 
     .dict-example {
       font-size: 13px;
-      color: #666;
+      color: var(--muted);
       font-style: italic;
       margin-top: 4px;
     }
 
     .dict-synonyms { margin-top: 10px; }
-    .dict-synonyms-title { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 6px; }
+    .dict-synonyms-title { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
     .dict-synonyms-list { display: flex; flex-wrap: wrap; gap: 6px; }
     .dict-synonym {
       background: #f5f5f5;
@@ -1499,14 +1518,14 @@
     .test-finish-state {
       text-align: center;
       padding: 48px 20px;
-      color: #666;
+      color: var(--muted);
       display: none;
     }
 
     .test-empty-state h2,
     .test-finish-state h2 {
       margin-bottom: 10px;
-      color: #333;
+      color: var(--ink);
     }
 
     /* —— 响应式：手机 —— */
@@ -1783,6 +1802,41 @@
 
         <div id="settingsTab" class="tab-content hidden">
           <div class="pane-section">
+            <div class="pane-section-title">界面主题</div>
+            <div class="form-group">
+              <div class="help-text" style="margin-top:0;">切换后立即作用于主界面、弹窗，以及网页里的划词悬浮窗。</div>
+              <div class="radio-group" id="uiThemeGroup" style="margin-top:12px;">
+                <label class="radio-option selected">
+                  <input type="radio" name="uiTheme" value="violet" checked>
+                  <strong>暮紫</strong>
+                  <div class="help-text">默认紫色</div>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="uiTheme" value="ocean">
+                  <strong>海蓝</strong>
+                  <div class="help-text">蓝色</div>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="uiTheme" value="forest">
+                  <strong>森绿</strong>
+                  <div class="help-text">绿色</div>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="uiTheme" value="sunset">
+                  <strong>暖阳</strong>
+                  <div class="help-text">橙色</div>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="uiTheme" value="night">
+                  <strong>夜色</strong>
+                  <div class="help-text">深色</div>
+                </label>
+              </div>
+            </div>
+            <div class="status-message" id="uiThemeStatus"></div>
+          </div>
+
+          <div class="pane-section">
             <div class="pane-section-title">查询顺序</div>
             <div class="form-group">
               <div class="help-text">
@@ -1796,6 +1850,28 @@
               <div id="apiRouteSummary" style="margin-top:12px;"></div>
               <div class="status-message" id="apiProbeStatus"></div>
             </div>
+          </div>
+
+          <div class="pane-section">
+            <div class="pane-section-title">划句翻译</div>
+            <div class="form-group">
+              <div class="help-text" style="margin-top:0;">
+                划选两个词以上的短语或句子时如何翻译。单词仍用双击或 Ctrl+划选加入生词本。
+              </div>
+              <div class="radio-group" id="sentenceTranslateModeGroup" style="margin-top:12px;">
+                <label class="radio-option selected">
+                  <input type="radio" name="sentenceTranslateMode" value="auto" checked>
+                  <strong>自动翻译</strong>
+                  <div class="help-text">松开鼠标后立即弹出译文</div>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="sentenceTranslateMode" value="button">
+                  <strong>浮动按钮</strong>
+                  <div class="help-text">选中后出现按钮，点击后再翻译</div>
+                </label>
+              </div>
+            </div>
+            <div class="status-message" id="sentenceTranslateStatus"></div>
           </div>
 
           <div class="pane-section">
@@ -1838,14 +1914,14 @@
             <div class="status-message" id="deepseekStatus"></div>
             <div style="margin-top:16px; padding-top:14px; border-top:1px solid #eee;">
               <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-                <strong style="color:#333; font-size:13px;">最近 API 调用</strong>
+                <strong style="font-size:13px;">最近 API 调用</strong>
                 <div class="data-actions">
                   <button type="button" class="btn btn-primary" id="refreshDeepseekLogBtn">刷新</button>
                   <button type="button" class="btn btn-success" id="openDeepseekLogPageBtn">打开日志 Tab</button>
                   <button type="button" class="btn btn-danger" id="clearDeepseekLogBtn">清空</button>
                 </div>
               </div>
-              <div id="deepseekLogPreview" style="max-height:220px; overflow:auto; border:1px solid #e8e8e8; border-radius:8px; background:#fafafa; padding:10px; font-size:12px; color:#555;">
+              <div id="deepseekLogPreview" style="max-height:220px; overflow:auto; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); padding:10px; font-size:12px; color:var(--muted);">
                 加载中...
               </div>
             </div>

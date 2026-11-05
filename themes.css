@@ -1,0 +1,71 @@
+/* WordNest 界面主题。只写 --wn-*，避免改到网页自己的变量。 */
+:root,
+html[data-wn-theme="violet"] {
+  --wn-brand: #667eea;
+  --wn-brand-2: #764ba2;
+  --wn-brand-soft: rgba(102, 126, 234, 0.12);
+  --wn-ink: #1f2430;
+  --wn-muted: #6b7280;
+  --wn-line: #e6e8ef;
+  --wn-surface: #ffffff;
+  --wn-surface-2: #f7f8fb;
+  --wn-page: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
+  --wn-header: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --wn-on-brand: #ffffff;
+}
+
+html[data-wn-theme="ocean"] {
+  --wn-brand: #1d6fbf;
+  --wn-brand-2: #0e4c86;
+  --wn-brand-soft: rgba(29, 111, 191, 0.12);
+  --wn-ink: #163047;
+  --wn-muted: #5d7388;
+  --wn-line: #d5e3ef;
+  --wn-surface: #ffffff;
+  --wn-surface-2: #f3f8fc;
+  --wn-page: linear-gradient(145deg, #1d6fbf 0%, #0e4c86 100%);
+  --wn-header: linear-gradient(135deg, #1d6fbf 0%, #0e4c86 100%);
+  --wn-on-brand: #ffffff;
+}
+
+html[data-wn-theme="forest"] {
+  --wn-brand: #2f9e62;
+  --wn-brand-2: #1f6b45;
+  --wn-brand-soft: rgba(47, 158, 98, 0.12);
+  --wn-ink: #1c3328;
+  --wn-muted: #5e7568;
+  --wn-line: #d7e6dc;
+  --wn-surface: #ffffff;
+  --wn-surface-2: #f4faf6;
+  --wn-page: linear-gradient(145deg, #2f9e62 0%, #1f6b45 100%);
+  --wn-header: linear-gradient(135deg, #2f9e62 0%, #1f6b45 100%);
+  --wn-on-brand: #ffffff;
+}
+
+html[data-wn-theme="sunset"] {
+  --wn-brand: #e07a3d;
+  --wn-brand-2: #c44b6a;
+  --wn-brand-soft: rgba(224, 122, 61, 0.14);
+  --wn-ink: #3a241c;
+  --wn-muted: #8a6758;
+  --wn-line: #f0ddd3;
+  --wn-surface: #fffaf7;
+  --wn-surface-2: #fff1e8;
+  --wn-page: linear-gradient(145deg, #e07a3d 0%, #c44b6a 100%);
+  --wn-header: linear-gradient(135deg, #e07a3d 0%, #c44b6a 100%);
+  --wn-on-brand: #ffffff;
+}
+
+html[data-wn-theme="night"] {
+  --wn-brand: #8b9cf7;
+  --wn-brand-2: #6d5bd0;
+  --wn-brand-soft: rgba(139, 156, 247, 0.16);
+  --wn-ink: #e8eaf2;
+  --wn-muted: #a3abc0;
+  --wn-line: #2c3348;
+  --wn-surface: #171b27;
+  --wn-surface-2: #12151f;
+  --wn-page: #0e1118;
+  --wn-header: linear-gradient(135deg, #2a3358 0%, #3a2d62 100%);
+  --wn-on-brand: #ffffff;
+}
