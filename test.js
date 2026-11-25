@@ -29,6 +29,62 @@
   let countdownRemainingMs = 0;
   let countdownPaused = false;
   let countdownLastTs = 0;
+  let pausedThisQuestion = false; // 答对后点过暂停看详情 → 记为「模糊」
+  let ratedThisQuestion = false;  // 本题是否已写入复习记录（避免重复计分）
+  const SRS = window.WordNestSRS;
+
+  // ===== 释义统一：测验选项、答案提示、详情顶部「简明释义」用同一段文本 =====
+  const MEANING_PLACEHOLDERS = new Set(['翻译中...', '翻译失败', '翻译失败，请检查网络', '暂无翻译']);
+
+  // 离线词典（ECDICT）文本里存的是字面量 "\n"，统一换成「；」
+  function cleanMeaningText(text) {
+    return String(text || '')
+      .replace(/\\n|\r?\n/g, '；')
+      .replace(/\s*；\s*/g, '；')
+      .replace(/；{2,}/g, '；')
+      .replace(/^；|；$/g, '')
+      .trim();
+  }
+
+  function isUsableMeaning(text) {
+    const t = String(text || '').trim();
+    return !!t && !MEANING_PLACEHOLDERS.has(t);
+  }
+
+  // 取中文“义项块”用于判断两条释义是否同义：去词性、去 [医]/[计] 等领域标、去括号注释
+  function meaningChunks(text) {
+    return cleanMeaningText(text)
+      .replace(/\b(?:n|v|vt|vi|adj|adv|prep|conj|pron|int|num|art|abbr|aux|a|ad)\.\s*/gi, '')
+      .replace(/\[[^\]]*\]|【[^】]*】|[（(][^）)]*[）)]|<[^>]*>/g, ' ')
+      .split(/[；;，,、。\s]+/)
+      .map((x) => x.trim())
+      .filter((x) => x.length >= 2 && /[\u4e00-\u9fff]/.test(x));
+  }
+
+  // 中文双字组（去掉含 的/地/或 等虚字的组合），用于粗略判断两条释义是否说的是同一个意思
+  const MEANING_STOP_CHARS = /[的地得之或等者使被了着一个是有在和与及其]/;
+  function meaningBigrams(text) {
+    const out = new Set();
+    meaningChunks(text).forEach((c) => {
+      const han = c.replace(/[^\u4e00-\u9fff]/g, '');
+      for (let i = 0; i < han.length - 1; i++) {
+        const bg = han.slice(i, i + 2);
+        if (!MEANING_STOP_CHARS.test(bg)) out.add(bg);
+      }
+    });
+    return out;
+  }
+
+  // 两段释义是否有共同的中文双字词（如「评估」「分配」）；任一方提取不到时视为不冲突
+  function meaningsOverlap(a, b) {
+    const A = meaningBigrams(a);
+    const B = meaningBigrams(b);
+    if (!A.size || !B.size) return true;
+    for (const x of A) if (B.has(x)) return true;
+    return false;
+  }
+
+  window.WordNestMeaning = { cleanMeaningText, isUsableMeaning, meaningChunks, meaningBigrams, meaningsOverlap };
 
   function $(id) {
     return document.getElementById(id);
@@ -183,6 +239,7 @@
     // 第一次点击：暂停并展示详细信息（不算答错）；再次点击：进入下一题
     if (!countdownPaused) {
       countdownPaused = true;
+      pausedThisQuestion = true;
       countdownLastTs = 0;
       if (countdownRaf) {
         cancelAnimationFrame(countdownRaf);
@@ -1267,9 +1324,11 @@
         `${userKey}wordTranslations`,
         `${userKey}wordDictionaryData`,
         `${userKey}wordStatus`,
-        `${userKey}wordChineseTranslations`
+        `${userKey}wordChineseTranslations`,
+        SRS.reviewKey(userKey)
       ], (result) => {
         const savedWords = result[`${userKey}savedWords`] || [];
+        const reviewMap = new Map(result[SRS.reviewKey(userKey)] || []);
         const translations = new Map(result[`${userKey}wordTranslations`] || []);
         const chineseOnly = new Map(result[`${userKey}wordChineseTranslations`] || []);
         const dictionaryMap = new Map(result[`${userKey}wordDictionaryData`] || []);
@@ -1278,19 +1337,21 @@
         let list = savedWords.map((word) => {
           const lower = word.toLowerCase();
           const dictData = dictionaryMap.get(word) || dictionaryMap.get(lower) || null;
-          const translation =
-            translations.get(word) ||
-            translations.get(lower) ||
-            chineseOnly.get(word) ||
-            chineseOnly.get(lower) ||
-            (dictData && dictData.translation) ||
-            '';
+          // 与单词列表/悬停/详情「简明释义」同一来源；占位文本（翻译中…/翻译失败）跳过
+          const translation = [
+            translations.get(word),
+            translations.get(lower),
+            chineseOnly.get(word),
+            chineseOnly.get(lower),
+            dictData && dictData.translation
+          ].find(isUsableMeaning) || '';
           return {
             word: word,
-            translation: String(translation || '').trim(),
+            translation: cleanMeaningText(translation),
             status: statuses.get(word) || statuses.get(lower) || 'new',
             phonetic: extractPhonetic(dictData),
-            dictData: dictData
+            dictData: dictData,
+            review: reviewMap.get(lower) || null
           };
         });
 
@@ -1307,20 +1368,85 @@
     return fetchSavedWordEntries((w) => w.status === 'new');
   }
 
+  // 记忆曲线：读出当前用户的复习记录，并为旧的「已记住」词补记录（只补一次）
+  async function loadReviewState() {
+    const currentUserId = await getCurrentUserId();
+    const userKey = `user_${currentUserId}_`;
+    const rKey = SRS.reviewKey(userKey);
+    const result = await new Promise((resolve) => {
+      chrome.storage.local.get([`${userKey}savedWords`, `${userKey}wordStatus`, rKey], resolve);
+    });
+    const savedWords = result[`${userKey}savedWords`] || [];
+    const statuses = new Map(result[`${userKey}wordStatus`] || []);
+    const reviewMap = new Map(result[rKey] || []);
+    if (SRS.migrate(savedWords, statuses, reviewMap, Date.now()) > 0) {
+      await new Promise((resolve) => chrome.storage.local.set({ [rKey]: Array.from(reviewMap.entries()) }, resolve));
+    }
+    return { savedWords, statuses, reviewMap, userKey };
+  }
+
+  // 本轮队列：先到期复习（最早到期在前），再补从未复习过的新词
+  async function fetchReviewQueue() {
+    const st = await loadReviewState();
+    const groups = SRS.classify(st.savedWords, st.statuses, st.reviewMap, Date.now());
+    const entries = await fetchSavedWordEntries();
+    const byWord = new Map(entries.map((e) => [e.word, e]));
+    const pick = (list) => list.map((w) => byWord.get(w)).filter(Boolean);
+    return {
+      due: pick(groups.due),
+      fresh: shuffleInPlace(pick(groups.fresh)),
+      nextDue: groups.nextDue
+    };
+  }
+
   async function loadWords(limit) {
-    // 题目只从未记住里抽；干扰项用整份生词本，避免小会话落到无单词绑定的占位选项
-    const allUnmastered = await fetchUnmasteredWords();
+    // 题目按记忆曲线抽取；干扰项用整份生词本，避免小会话落到无单词绑定的占位选项
+    const queue = await fetchReviewQueue();
+    const allPending = queue.due.concat(queue.fresh);
     optionPool = await fetchSavedWordEntries((w) => !!(w.word && w.translation));
     if (!optionPool.length) {
-      optionPool = allUnmastered.filter((w) => w.word && w.translation);
+      optionPool = allPending.filter((w) => w.word && w.translation);
     }
 
     const n = Number(limit);
-    if (!n || n <= 0 || n >= allUnmastered.length) {
-      words = allUnmastered;
+    if (!n || n <= 0 || n >= allPending.length) {
+      words = allPending;
     } else {
-      words = allUnmastered.slice(0, n);
+      words = allPending.slice(0, n);
     }
+    return queue;
+  }
+
+  // 写入一次复习结果：更新 wordReview，并同步旧的 new/mastered 状态
+  async function recordReview(word, rating) {
+    if (!word) return null;
+    const lower = String(word).toLowerCase();
+    const currentUserId = await getCurrentUserId();
+    const userKey = `user_${currentUserId}_`;
+    const rKey = SRS.reviewKey(userKey);
+    const result = await new Promise((resolve) => {
+      chrome.storage.local.get([`${userKey}wordStatus`, rKey], resolve);
+    });
+    const statuses = new Map(result[`${userKey}wordStatus`] || []);
+    const reviewMap = new Map(result[rKey] || []);
+    const rec = SRS.schedule(reviewMap.get(lower), rating, Date.now());
+    delete rec.migrated;
+    reviewMap.set(lower, rec);
+    const statusKey = statuses.has(word) ? word : lower;
+    statuses.set(statusKey, SRS.statusFor(rec, 'new'));
+    await new Promise((resolve) => {
+      chrome.storage.local.set({
+        [rKey]: Array.from(reviewMap.entries()),
+        [`${userKey}wordStatus`]: Array.from(statuses.entries())
+      }, resolve);
+    });
+    return rec;
+  }
+
+  function describeReview(rec) {
+    if (!rec) return '';
+    const label = rec.stage >= SRS.MASTER_STAGE ? '已记住' : '记忆中';
+    return `${label} · 第 ${rec.stage} 级 · 下次复习：${SRS.formatIn(rec.due - Date.now())}`;
   }
 
   function getSelectedSessionCount() {
@@ -1350,17 +1476,19 @@
   async function refreshAvailableCount() {
     const els = getEls();
     if (!els.availableCount) return;
-    const all = await fetchUnmasteredWords();
+    const queue = await fetchReviewQueue();
+    const totalPending = queue.due.length + queue.fresh.length;
     const selected = getSelectedSessionCount();
-    const take = (!selected || selected <= 0) ? all.length : Math.min(selected, all.length);
-    if (!all.length) {
-      els.availableCount.textContent = '待记单词：0 个（请先把单词标为「未记住」）';
+    const take = (!selected || selected <= 0) ? totalPending : Math.min(selected, totalPending);
+    if (!totalPending) {
+      const next = queue.nextDue ? `，下一次复习在 ${SRS.formatIn(queue.nextDue - Date.now())}` : '';
+      els.availableCount.textContent = `今天没有要复习的单词${next}`;
       return;
     }
-    const tip = all.length < 4
+    const tip = totalPending < 4
       ? ' · 生词不足 4 个时，干扰项从离线词典抽取；点词典选项会加入生词本'
       : '';
-    els.availableCount.textContent = `待记单词：${all.length} 个 · 本轮将抽取 ${take} 个${tip}`;
+    els.availableCount.textContent = `今日复习：${queue.due.length} 个 · 新词：${queue.fresh.length} 个 · 本轮将抽取 ${take} 个${tip}`;
   }
 
   function showStartScreen() {
@@ -1453,22 +1581,22 @@
 
     const seenText = new Set([correctAnswer, rawTranslation].filter(Boolean));
     const seenWords = new Set([String(correctWord).toLowerCase()]);
-    const distractors = (poolWords || [])
-      .filter((w) => {
-        if (!w || !w.word) return false;
-        const lower = String(w.word).toLowerCase();
-        if (seenWords.has(lower)) return false;
-        const t = String(w.translation || '').trim();
-        if (!t || seenText.has(t)) return false;
-        return true;
-      })
-      .map((w) => {
-        const t = String(w.translation || '').trim();
-        seenText.add(t);
-        seenWords.add(String(w.word).toLowerCase());
-        return { text: t, word: w.word, source: 'vocab' };
-      })
-      .sort(() => Math.random() - 0.5);
+    const seenChunks = meaningBigrams(rawTranslation);
+    // 干扰项去重：与正确答案或已选干扰项有共同中文词（如「评估」「分配」）的不用，避免出现两个都对的选项
+    const clashes = (t) => [...meaningBigrams(t)].some((c) => seenChunks.has(c));
+    const takeChunks = (t) => meaningBigrams(t).forEach((c) => seenChunks.add(c));
+    const distractors = [];
+    shuffleInPlace((poolWords || []).slice()).forEach((w) => {
+      if (!w || !w.word) return;
+      const lower = String(w.word).toLowerCase();
+      if (seenWords.has(lower)) return;
+      const t = cleanMeaningText(w.translation);
+      if (!isUsableMeaning(t) || seenText.has(t) || clashes(t)) return;
+      seenText.add(t);
+      seenWords.add(lower);
+      takeChunks(t);
+      distractors.push({ text: t, word: w.word, source: 'vocab' });
+    });
 
     while (entries.length < 4 && distractors.length > 0) {
       entries.push(distractors.shift());
@@ -1482,12 +1610,13 @@
       samples.forEach((sample) => {
         if (entries.length >= 4) return;
         const w = String(sample.word || '').trim();
-        const t = String(sample.translation || '').trim();
+        const t = cleanMeaningText(sample.translation);
         if (!w || !t) return;
         const lower = w.toLowerCase();
-        if (seenWords.has(lower) || seenText.has(t)) return;
+        if (seenWords.has(lower) || seenText.has(t) || clashes(t)) return;
         seenWords.add(lower);
         seenText.add(t);
+        takeChunks(t);
         entries.push({ text: t, word: w, source: 'dict' });
       });
     }
@@ -1550,7 +1679,9 @@
     const showingIndex = currentIndex;
     els.wordText.textContent = currentWord.word;
     renderTestWordPhonetic(els.wordPhonetic, currentWord.word, currentWord.phonetic);
-    els.wordStatus.textContent = currentWord.status === 'mastered' ? '✓ 已记住' : '未记住';
+    els.wordStatus.textContent = currentWord.review && currentWord.review.reps
+      ? `${currentWord.status === 'mastered' ? '✓ 已记住' : '记忆中'} · 第 ${currentWord.review.stage} 级 · 已复习 ${currentWord.review.reps} 次`
+      : (currentWord.status === 'mastered' ? '✓ 已记住（抽查）' : '新词');
 
     if (!currentWord.phonetic) {
       resolvePhonetic(currentWord).then((phonetic) => {
@@ -1587,6 +1718,8 @@
     isAnswerShown = false;
     isSubmitting = false;
     selectedOption = -1;
+    pausedThisQuestion = false;
+    ratedThisQuestion = false;
     els.wordCard.classList.remove('wrong-answer');
     els.answerFeedback.textContent = '';
     els.answerFeedback.classList.remove('show', 'correct', 'wrong');
@@ -1649,6 +1782,14 @@
       if (els.nextBtn) els.nextBtn.style.display = 'inline-block';
       isSubmitting = false;
       showWordDetails({ countAsWrong: false });
+      if (!ratedThisQuestion) {
+        ratedThisQuestion = true;
+        const rec = await recordReview(words[currentIndex] && words[currentIndex].word, 'again');
+        if (rec && token === questionToken && els.wordStatus) {
+          els.wordStatus.textContent = describeReview(rec);
+        }
+        refreshMainStats();
+      }
     }
   }
 
@@ -1971,6 +2112,11 @@
 
   async function showDontKnow() {
     await showWordDetails({ countAsWrong: true });
+    if (!ratedThisQuestion && words[currentIndex]) {
+      ratedThisQuestion = true;
+      await recordReview(words[currentIndex].word, 'again');
+      refreshMainStats();
+    }
   }
 
   async function markAsMastered(token) {
@@ -1981,37 +2127,26 @@
     }
 
     const currentWord = words[currentIndex];
-    const lowerWord = currentWord.word.toLowerCase();
-    const currentUserId = await getCurrentUserId();
-    const userKey = `user_${currentUserId}_`;
     const tokenAtStart = questionToken;
+    const rating = pausedThisQuestion ? 'hard' : 'good';
+    if (!ratedThisQuestion) {
+      ratedThisQuestion = true;
+      await recordReview(currentWord.word, rating);
+    }
+    if (tokenAtStart !== questionToken) return;
 
-    chrome.storage.local.get([`${userKey}wordStatus`], (result) => {
-      if (tokenAtStart !== questionToken) return;
-
-      const statuses = new Map(result[`${userKey}wordStatus`] || []);
-      statuses.set(lowerWord, 'mastered');
-
-      const userData = {};
-      userData[`${userKey}wordStatus`] = Array.from(statuses.entries());
-
-      chrome.storage.local.set(userData, () => {
-        if (tokenAtStart !== questionToken) return;
-
-        completedCount += 1;
-        words.splice(currentIndex, 1);
-        if (currentIndex >= words.length && words.length > 0) {
-          currentIndex = words.length - 1;
-        }
-        refreshMainStats();
-        updateProgressUI();
-        if (words.length === 0) {
-          finishTest();
-        } else {
-          showCurrentWord();
-        }
-      });
-    });
+    completedCount += 1;
+    words.splice(currentIndex, 1);
+    if (currentIndex >= words.length && words.length > 0) {
+      currentIndex = words.length - 1;
+    }
+    refreshMainStats();
+    updateProgressUI();
+    if (words.length === 0) {
+      finishTest();
+    } else {
+      showCurrentWord();
+    }
   }
 
   function nextWord() {
@@ -2167,7 +2302,7 @@
     if (words.length === 0) {
       isActive = false;
       if (typeof window.showAppAlert === 'function') {
-        window.showAppAlert('当前没有未记住的单词，请先收藏或把单词标为「未记住」。', '无法开始');
+        window.showAppAlert('今天没有到期要复习的单词，也没有新词。按记忆曲线，到期后会自动出现在这里。', '无法开始');
       }
       showStartScreen();
       return;

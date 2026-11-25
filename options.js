@@ -23,6 +23,20 @@
   const sentenceModeInputs = document.querySelectorAll('input[name="sentenceTranslateMode"]');
   const uiThemeStatus = document.getElementById('uiThemeStatus');
   const uiThemeInputs = document.querySelectorAll('input[name="uiTheme"]');
+  const wordMarkStatus = document.getElementById('wordMarkStatus');
+  const wordMarkStyleInputs = document.querySelectorAll('input[name="wordMarkStyle"]');
+  const markNewColor = document.getElementById('markNewColor');
+  const markMasteredColor = document.getElementById('markMasteredColor');
+  const markPreviewNew = document.getElementById('markPreviewNew');
+  const markPreviewMastered = document.getElementById('markPreviewMastered');
+  const WORD_MARK_STYLES = ['wavy', 'solid', 'dashed', 'dotted', 'highlight'];
+  const WORD_MARK_LABELS = {
+    wavy: '波浪线',
+    solid: '直线',
+    dashed: '虚线',
+    dotted: '点线',
+    highlight: '荧光笔'
+  };
   const UI_THEMES = ['violet', 'ocean', 'forest', 'sunset', 'night'];
   const UI_THEME_LABELS = {
     violet: '暮紫',
@@ -176,18 +190,22 @@
     return { kind: 'fail', text: hit.error ? `失败·${hit.error}` : '失败' };
   }
 
+  function routeStatusClass(kind) {
+    if (kind === 'ok') return 'ok';
+    if (kind === 'fail') return 'bad';
+    return 'neutral';
+  }
+
   function renderOrderList(kind, title, order, results) {
     const rows = (order || []).map((id, index) => {
       const st = statusForId(id, results);
-      const color = st.kind === 'ok' ? '#2e7d32' : (st.kind === 'fail' ? '#c62828' : '#64748b');
-      const bg = st.kind === 'ok' ? '#e8f5e9' : (st.kind === 'fail' ? '#ffebee' : '#f1f5f9');
       return `
-        <div class="api-route-row" data-kind="${kind}" data-id="${id}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;">
-          <span style="width:22px;color:#94a3b8;font-size:12px;text-align:center;">${index + 1}</span>
+        <div class="api-route-row" data-kind="${kind}" data-id="${id}">
+          <span class="api-route-index">${index + 1}</span>
           <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;color:#334155;">${ROUTE_LABELS[id] || id}</div>
+            <div class="api-route-name">${ROUTE_LABELS[id] || id}</div>
           </div>
-          <span style="font-size:12px;padding:2px 8px;border-radius:999px;background:${bg};color:${color};white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;" title="${st.text}">${st.text}</span>
+          <span class="api-route-pill ${routeStatusClass(st.kind)}" title="${st.text}">${st.text}</span>
           <button type="button" class="btn btn-primary api-route-up" data-kind="${kind}" data-index="${index}" style="padding:4px 8px;font-size:12px;line-height:1;" ${index === 0 ? 'disabled' : ''}>↑</button>
           <button type="button" class="btn btn-primary api-route-down" data-kind="${kind}" data-index="${index}" style="padding:4px 8px;font-size:12px;line-height:1;" ${index >= order.length - 1 ? 'disabled' : ''}>↓</button>
         </div>
@@ -195,41 +213,39 @@
     }).join('');
 
     return `
-      <div style="margin-bottom:14px;">
-        <div style="font-weight:600;color:#1e293b;margin-bottom:8px;">${title}</div>
-        ${rows || '<div style="color:#94a3b8;font-size:12px;">暂无项目</div>'}
+      <div class="api-route-group">
+        <div class="api-route-group-title">${title}</div>
+        ${rows || '<div class="api-route-empty">暂无项目</div>'}
       </div>
     `;
   }
 
   function renderDetailSlotRow(slotKey, label, selectedId, allowedIds, results) {
     const st = statusForId(selectedId, results);
-    const color = st.kind === 'ok' ? '#2e7d32' : (st.kind === 'fail' ? '#c62828' : '#64748b');
-    const bg = st.kind === 'ok' ? '#e8f5e9' : (st.kind === 'fail' ? '#ffebee' : '#f1f5f9');
     const options = allowedIds.map((id) =>
       `<option value="${id}" ${id === selectedId ? 'selected' : ''}>${ROUTE_LABELS[id] || id}</option>`
     ).join('');
     return `
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;">
-        <span style="width:36px;color:#64748b;font-size:12px;">${label}</span>
-        <select class="api-detail-slot" data-slot="${slotKey}" style="flex:1;min-width:0;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
+      <div class="api-detail-row">
+        <span class="api-route-index" style="width:36px;">${label}</span>
+        <select class="api-detail-slot" data-slot="${slotKey}">
           ${options}
         </select>
-        <span style="font-size:12px;padding:2px 8px;border-radius:999px;background:${bg};color:${color};white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;" title="${st.text}">${st.text}</span>
+        <span class="api-route-pill ${routeStatusClass(st.kind)}" title="${st.text}">${st.text}</span>
       </div>
     `;
   }
 
   function renderDetailSlots(cfg) {
     return `
-      <div style="margin-bottom:14px;">
-        <div style="font-weight:600;color:#1e293b;margin-bottom:8px;">详情 · 中文（一主一备）</div>
+      <div class="api-route-group">
+        <div class="api-route-group-title">详情 · 中文（一主一备）</div>
         ${renderDetailSlotRow('dictZhPrimary', '主', cfg.dictZhPrimary, DICT_ZH_IDS, cfg.results)}
         ${renderDetailSlotRow('dictZhBackup', '备', cfg.dictZhBackup, DICT_ZH_IDS, cfg.results)}
-        <div style="font-weight:600;color:#1e293b;margin:12px 0 8px;">详情 · 英文（一主一备）</div>
+        <div class="api-route-group-title" style="margin-top:12px;">详情 · 英文（一主一备）</div>
         ${renderDetailSlotRow('dictEnPrimary', '主', cfg.dictEnPrimary, DICT_EN_IDS, cfg.results)}
         ${renderDetailSlotRow('dictEnBackup', '备', cfg.dictEnBackup, DICT_EN_IDS, cfg.results)}
-        <div style="color:#94a3b8;font-size:12px;">主源成功即停；失败才自动改用备源。</div>
+        <div class="api-route-hint">主源成功即停；失败才自动改用备源。</div>
       </div>
     `;
   }
@@ -242,11 +258,11 @@
       : '';
 
     apiRouteSummary.innerHTML = `
-      <div style="padding:12px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;line-height:1.5;color:#334155;">
+      <div class="api-route-summary">
         ${renderOrderList('translateOrder', '释义顺序', currentRouteCfg.translateOrder, currentRouteCfg.results)}
         ${renderDetailSlots(currentRouteCfg)}
         ${renderOrderList('ttsOrder', '发音顺序', currentRouteCfg.ttsOrder, currentRouteCfg.results)}
-        <div style="color:#64748b;font-size:12px;border-top:1px dashed #e2e8f0;padding-top:8px;">
+        <div class="api-route-summary-foot">
           ${when ? `最近检测：${when}` : '尚未检测状态；可点「仅刷新状态」或「自动测速并排序」。'}
           · 调整后立即生效
         </div>
@@ -627,12 +643,96 @@
     });
   });
 
+  function normalizeWordMark(cfg) {
+    const hex = (value, fallback) => /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? String(value) : fallback;
+    return {
+      style: WORD_MARK_STYLES.indexOf(cfg && cfg.style) >= 0 ? cfg.style : 'wavy',
+      newColor: hex(cfg && cfg.newColor, '#FF6B35'),
+      masteredColor: hex(cfg && cfg.masteredColor, '#4CAF50')
+    };
+  }
+
+  function paintMarkPreview(cfg) {
+    const mark = normalizeWordMark(cfg);
+    const paint = (el, color) => {
+      if (!el) return;
+      if (mark.style === 'highlight') {
+        el.style.textDecoration = 'none';
+        el.style.backgroundColor = color + '7a';
+      } else {
+        el.style.backgroundColor = color + '24';
+        el.style.textDecoration = 'underline';
+        el.style.textDecorationStyle = mark.style;
+        el.style.textDecorationColor = color;
+        el.style.textDecorationThickness = '2px';
+        el.style.textUnderlineOffset = '2px';
+      }
+    };
+    paint(markPreviewNew, mark.newColor);
+    paint(markPreviewMastered, mark.masteredColor);
+  }
+
+  function readWordMarkFromUI() {
+    let style = 'wavy';
+    wordMarkStyleInputs.forEach((input) => {
+      if (input.checked) style = input.value;
+    });
+    return normalizeWordMark({
+      style,
+      newColor: markNewColor ? markNewColor.value : '',
+      masteredColor: markMasteredColor ? markMasteredColor.value : ''
+    });
+  }
+
+  function syncWordMarkUI(cfg) {
+    const mark = normalizeWordMark(cfg);
+    wordMarkStyleInputs.forEach((input) => {
+      const selected = input.value === mark.style;
+      input.checked = selected;
+      const label = input.closest('.radio-option');
+      if (label) label.classList.toggle('selected', selected);
+    });
+    if (markNewColor) markNewColor.value = mark.newColor;
+    if (markMasteredColor) markMasteredColor.value = mark.masteredColor;
+    paintMarkPreview(mark);
+  }
+
+  function persistWordMark() {
+    const mark = readWordMarkFromUI();
+    wordMarkStyleInputs.forEach((input) => {
+      const label = input.closest('.radio-option');
+      if (label) label.classList.toggle('selected', input.checked);
+    });
+    paintMarkPreview(mark);
+    chrome.storage.local.set({ wordMarkConfig: mark }, () => {
+      flashStatus(
+        wordMarkStatus,
+        '单词标记已改为：' + (WORD_MARK_LABELS[mark.style] || mark.style),
+        'success'
+      );
+    });
+  }
+
+  const persistWordMarkDebounced = debounce(persistWordMark, 180);
+  wordMarkStyleInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      if (input.checked) persistWordMark();
+    });
+  });
+  const onMarkColorInput = () => {
+    paintMarkPreview(readWordMarkFromUI());
+    persistWordMarkDebounced();
+  };
+  if (markNewColor) markNewColor.addEventListener('input', onMarkColorInput);
+  if (markMasteredColor) markMasteredColor.addEventListener('input', onMarkColorInput);
+
   function loadSettings() {
-    chrome.storage.local.get(['apiRouteConfig', 'baiduAppId', 'baiduSecretKey', 'deepseekApiKey', 'sentenceTranslateMode', 'uiTheme'], (result) => {
+    chrome.storage.local.get(['apiRouteConfig', 'baiduAppId', 'baiduSecretKey', 'deepseekApiKey', 'sentenceTranslateMode', 'uiTheme', 'wordMarkConfig'], (result) => {
       baiduConfigured = !!(result.baiduAppId && result.baiduSecretKey);
       renderApiRouteSummary(result.apiRouteConfig || DEFAULT_API_ROUTE);
       syncSentenceTranslateModeUI(result.sentenceTranslateMode);
       syncUiThemeUI(result.uiTheme);
+      syncWordMarkUI(result.wordMarkConfig);
 
       if (result.baiduAppId) {
         baiduAppId.value = result.baiduAppId;
@@ -873,8 +973,8 @@
       }
       const recent = logs.slice(0, 20);
       preview.innerHTML = recent.map((item) => {
-        const color = item.success ? '#2e7d32' : '#c62828';
         const status = item.success ? '成功' : '失败';
+        const statusClass = item.success ? 'ok' : 'bad';
         const apiLabels = {
           freedictionary: 'FD',
           datamuse: 'Datamuse',
@@ -891,11 +991,11 @@
         const apiName = apiLabels[item.api] || item.api || 'DeepSeek';
         const err = item.success ? '' : ` · ${item.error || ''}`;
         const detail = item.success && item.detail ? ` · ${item.detail}` : '';
-        return `<div style="padding:6px 0;border-bottom:1px dashed #e0e0e0;">
-          <span style="color:${color};font-weight:600;">[${status}]</span>
-          <span style="color:#555;">[${apiName}]</span>
+        return `<div class="deepseek-log-row">
+          <span class="${statusClass}">[${status}]</span>
+          <span class="api">[${apiName}]</span>
           <strong>${item.word || ''}</strong>
-          <span style="color:#999;"> · ${formatLogTime(item.time)} · ${item.durationMs || 0}ms · ${item.source || ''}${detail}${err}</span>
+          <span class="meta"> · ${formatLogTime(item.time)} · ${item.durationMs || 0}ms · ${item.source || ''}${detail}${err}</span>
         </div>`;
       }).join('');
     });
@@ -952,6 +1052,15 @@
   }
 
   const wordsDataStatus = document.getElementById('wordsDataStatus');
+  const importVocabFile = document.getElementById('importVocabFile');
+  const sharedLookupStats = document.getElementById('sharedLookupStats');
+  const sharedLookupStatus = document.getElementById('sharedLookupStatus');
+  const exportSharedLookupBtn = document.getElementById('exportSharedLookupBtn');
+  const importSharedLookupBtn = document.getElementById('importSharedLookupBtn');
+  const refreshSharedLookupBtn = document.getElementById('refreshSharedLookupBtn');
+  const importSharedLookupFile = document.getElementById('importSharedLookupFile');
+  let pendingImportUserId = '';
+  let pendingImportUserName = '';
 
   function escapeHtmlText(s) {
     return String(s || '')
@@ -960,7 +1069,95 @@
       .replace(/>/g, '&gt;');
   }
 
-  // 按指定用户导出生词本
+  function downloadTextFile(filename, text, mime) {
+    const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function csvEscape(value) {
+    const text = String(value == null ? '' : value);
+    if (/[",\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+    return text;
+  }
+
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let field = '';
+    let inQuotes = false;
+    const src = String(text || '').replace(/^\uFEFF/, '');
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (src[i + 1] === '"') {
+            field += '"';
+            i += 1;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          field += ch;
+        }
+        continue;
+      }
+      if (ch === '"') {
+        inQuotes = true;
+        continue;
+      }
+      if (ch === ',') {
+        row.push(field);
+        field = '';
+        continue;
+      }
+      if (ch === '\n') {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+        continue;
+      }
+      if (ch === '\r') continue;
+      field += ch;
+    }
+    if (field.length || row.length) {
+      row.push(field);
+      rows.push(row);
+    }
+    return rows.filter((r) => r.some((cell) => String(cell || '').trim() !== ''));
+  }
+
+  function normalizeStatus(raw) {
+    const value = String(raw || '').trim().toLowerCase();
+    if (!value) return 'new';
+    if (value === 'mastered' || value === '已记住' || value === 'remembered' || value === 'known') return 'mastered';
+    return 'new';
+  }
+
+  function statusLabel(status) {
+    return status === 'mastered' ? '已记住' : '未记住';
+  }
+
+  function mapHeaderIndex(headerRow) {
+    const map = {};
+    (headerRow || []).forEach((cell, index) => {
+      const key = String(cell || '').trim().toLowerCase();
+      if (!key) return;
+      if (['word', '单词', '词语', 'vocabulary'].includes(key)) map.word = index;
+      else if (['translation', '释义', '中文', '意思', 'meaning', 'definition'].includes(key)) map.translation = index;
+      else if (['status', '状态', '记住'].includes(key)) map.status = index;
+      else if (['note', '备注', 'notes', '注释'].includes(key)) map.note = index;
+      else if (['source', '来源', 'chinese_source', '中文来源'].includes(key)) map.source = index;
+    });
+    return map;
+  }
+
+  // 按指定用户导出生词本（Excel 可打开的 UTF-8 CSV）
   function exportWordsForUser(userId, userName) {
     const userKey = `user_${userId}_`;
     const safeName = String(userName || userId || 'user').replace(/[\\/:*?"<>|]/g, '_');
@@ -968,11 +1165,15 @@
     chrome.storage.local.get([
       `${userKey}savedWords`,
       `${userKey}wordTranslations`,
+      `${userKey}wordChineseTranslations`,
+      `${userKey}wordChineseSources`,
       `${userKey}wordStatus`,
       `${userKey}wordNotes`
     ], (result) => {
       const words = result[`${userKey}savedWords`] || [];
       const translations = new Map(result[`${userKey}wordTranslations`] || []);
+      const chineseMap = new Map(result[`${userKey}wordChineseTranslations`] || []);
+      const sources = new Map(result[`${userKey}wordChineseSources`] || []);
       const statuses = new Map(result[`${userKey}wordStatus`] || []);
       const notes = new Map(result[`${userKey}wordNotes`] || []);
 
@@ -981,59 +1182,310 @@
         return;
       }
 
-      const rowsHtml = words.map((word, index) => {
-        const translation = translations.get(word) || '';
-        const status = statuses.get(word) || 'new';
-        const note = notes.get(word) || '';
-        const statusText = status === 'mastered' ? '已记住' : '未记住';
-        return `
-          <tr>
-            <td style="padding:6px 8px; border:1px solid #ccc; text-align:center;">${index + 1}</td>
-            <td style="padding:6px 8px; border:1px solid #ccc;">${escapeHtmlText(word)}</td>
-            <td style="padding:6px 8px; border:1px solid #ccc;">${escapeHtmlText(translation)}</td>
-            <td style="padding:6px 8px; border:1px solid #ccc;">${statusText}</td>
-            <td style="padding:6px 8px; border:1px solid #ccc;">${escapeHtmlText(note)}</td>
-          </tr>
-        `;
-      }).join('');
+      const lines = [['单词', '释义', '状态', '备注', '来源'].map(csvEscape).join(',')];
+      words.forEach((word) => {
+        const lower = String(word || '').toLowerCase();
+        const translation = translations.get(word) || translations.get(lower) ||
+          chineseMap.get(word) || chineseMap.get(lower) || '';
+        const status = statuses.get(word) || statuses.get(lower) || 'new';
+        const note = notes.get(word) || notes.get(lower) || '';
+        const source = sources.get(word) || sources.get(lower) || '';
+        lines.push([
+          word,
+          translation,
+          statusLabel(status),
+          note,
+          source
+        ].map(csvEscape).join(','));
+      });
 
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>生词本导出 - ${escapeHtmlText(userName)}</title>
-        </head>
-        <body>
-          <h2 style="text-align:center;">生词本导出 · ${escapeHtmlText(userName)}（${new Date().toLocaleDateString('zh-CN')}）</h2>
-          <table style="border-collapse:collapse; width:100%; margin-top:12px; font-family:'Microsoft YaHei', Arial;">
-            <thead>
-              <tr>
-                <th style="padding:6px 8px; border:1px solid #ccc; background:#f5f5f5;">序号</th>
-                <th style="padding:6px 8px; border:1px solid #ccc; background:#f5f5f5;">单词</th>
-                <th style="padding:6px 8px; border:1px solid #ccc; background:#f5f5f5;">释义</th>
-                <th style="padding:6px 8px; border:1px solid #ccc; background:#f5f5f5;">状态</th>
-                <th style="padding:6px 8px; border:1px solid #ccc; background:#f5f5f5;">备注</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml}
-            </tbody>
-          </table>
-        </body>
-        </html>
-      `;
-
-      const blob = new Blob([htmlContent], { type: 'application/msword' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `生词本_${safeName}_${new Date().toISOString().split('T')[0]}.doc`;
-      a.click();
-      URL.revokeObjectURL(url);
-      if (wordsDataStatus) showStatus(wordsDataStatus, `已导出「${userName}」的 ${words.length} 个单词`, 'success');
+      // BOM 让 Excel 正确识别中文
+      const csv = '\uFEFF' + lines.join('\r\n');
+      downloadTextFile(
+        `生词本_${safeName}_${new Date().toISOString().split('T')[0]}.csv`,
+        csv,
+        'text/csv;charset=utf-8'
+      );
+      if (wordsDataStatus) showStatus(wordsDataStatus, `已导出「${userName}」的 ${words.length} 个单词（Excel CSV）`, 'success');
     });
   }
+
+  function pickImportFileForUser(userId, userName) {
+    pendingImportUserId = userId;
+    pendingImportUserName = userName;
+    if (importVocabFile) {
+      importVocabFile.value = '';
+      importVocabFile.click();
+    }
+  }
+
+  async function importWordsForUser(userId, userName, fileText) {
+    const rows = parseCsv(fileText);
+    if (!rows.length) throw new Error('文件为空或无法解析');
+
+    const headerMap = mapHeaderIndex(rows[0]);
+    const hasHeader = headerMap.word !== undefined;
+    const dataRows = hasHeader ? rows.slice(1) : rows;
+    const wordIdx = hasHeader ? headerMap.word : 0;
+    const translationIdx = hasHeader ? (headerMap.translation !== undefined ? headerMap.translation : 1) : 1;
+    const statusIdx = hasHeader ? headerMap.status : 2;
+    const noteIdx = hasHeader ? headerMap.note : 3;
+    const sourceIdx = hasHeader ? headerMap.source : 4;
+
+    const parsed = [];
+    dataRows.forEach((row) => {
+      const word = String(row[wordIdx] || '').trim();
+      if (!word || !/^[A-Za-z][A-Za-z'-]*$/.test(word)) return;
+      parsed.push({
+        word,
+        translation: String(row[translationIdx] || '').trim(),
+        status: normalizeStatus(statusIdx === undefined ? '' : row[statusIdx]),
+        note: String(noteIdx === undefined ? '' : (row[noteIdx] || '')).trim(),
+        source: String(sourceIdx === undefined ? '' : (row[sourceIdx] || '')).trim()
+      });
+    });
+    if (!parsed.length) throw new Error('未找到有效单词（需为英文单词）');
+
+    const validateOne = (word) => new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ action: 'validateVocabWord', word }, (res) => {
+          if (chrome.runtime.lastError || !res) {
+            resolve({ ok: false, reason: 'validate_failed' });
+            return;
+          }
+          resolve(res);
+        });
+      } catch (e) {
+        resolve({ ok: false, reason: 'validate_failed' });
+      }
+    });
+
+    const accepted = [];
+    let skippedInvalid = 0;
+    let correctedCount = 0;
+    for (let i = 0; i < parsed.length; i++) {
+      const item = parsed[i];
+      if (wordsDataStatus && i % 8 === 0) {
+        showStatus(wordsDataStatus, `正在校验单词 ${i + 1}/${parsed.length}…`, 'success');
+      }
+      const validation = await validateOne(item.word);
+      if (!validation || !validation.ok || !validation.word) {
+        skippedInvalid += 1;
+        continue;
+      }
+      if (validation.corrected) correctedCount += 1;
+      accepted.push({
+        ...item,
+        word: validation.word
+      });
+    }
+    if (!accepted.length) {
+      throw new Error(`没有可导入的有效单词（已跳过 ${skippedInvalid} 个无效/拼写错误）`);
+    }
+
+    const userKey = `user_${userId}_`;
+    const keys = [
+      `${userKey}savedWords`,
+      `${userKey}wordTranslations`,
+      `${userKey}wordChineseTranslations`,
+      `${userKey}wordChineseSources`,
+      `${userKey}wordStatus`,
+      `${userKey}wordNotes`,
+      `${userKey}wordDictionaryData`
+    ];
+    const stored = await new Promise((resolve) => chrome.storage.local.get(keys, resolve));
+    let savedWords = Array.isArray(stored[`${userKey}savedWords`]) ? stored[`${userKey}savedWords`].slice() : [];
+    const translations = new Map(stored[`${userKey}wordTranslations`] || []);
+    const chineseMap = new Map(stored[`${userKey}wordChineseTranslations`] || []);
+    const sources = new Map(stored[`${userKey}wordChineseSources`] || []);
+    const statuses = new Map(stored[`${userKey}wordStatus`] || []);
+    const notes = new Map(stored[`${userKey}wordNotes`] || []);
+    const dictMap = new Map(stored[`${userKey}wordDictionaryData`] || []);
+
+    let added = 0;
+    let updated = 0;
+    accepted.forEach((item) => {
+      const lower = item.word.toLowerCase();
+      const existingIndex = savedWords.findIndex((w) => String(w).toLowerCase() === lower);
+      let storedKey = item.word;
+      if (existingIndex >= 0) {
+        storedKey = savedWords[existingIndex];
+        updated += 1;
+      } else {
+        savedWords.push(item.word);
+        added += 1;
+      }
+      if (item.translation) {
+        translations.set(storedKey, item.translation);
+        chineseMap.set(storedKey, item.translation);
+        chineseMap.set(lower, item.translation);
+      }
+      if (item.source) {
+        sources.set(storedKey, item.source);
+        sources.set(lower, item.source);
+      }
+      if (item.status === 'mastered' || !statuses.has(storedKey)) {
+        statuses.set(storedKey, item.status || 'new');
+      }
+      if (item.note) notes.set(storedKey, item.note);
+      else if (!notes.has(storedKey)) notes.set(storedKey, '');
+    });
+
+    const userData = {};
+    userData[`${userKey}savedWords`] = savedWords;
+    userData[`${userKey}wordTranslations`] = Array.from(translations.entries());
+    userData[`${userKey}wordChineseTranslations`] = Array.from(chineseMap.entries());
+    userData[`${userKey}wordChineseSources`] = Array.from(sources.entries());
+    userData[`${userKey}wordStatus`] = Array.from(statuses.entries());
+    userData[`${userKey}wordNotes`] = Array.from(notes.entries());
+    userData[`${userKey}wordDictionaryData`] = Array.from(dictMap.entries());
+
+    await new Promise((resolve) => chrome.storage.local.set(userData, resolve));
+
+    // 有网络来源的释义同步进共用缓存（无 dict 也至少留短译）
+    accepted.forEach((item) => {
+      if (!item.translation) return;
+      const src = String(item.source || '').trim();
+      if (!src || src === 'ecd' || src === 'offline') return;
+      try {
+        chrome.runtime.sendMessage({
+          action: 'putSharedLookup',
+          word: item.word,
+          dict: null,
+          translation: item.translation,
+          translationSource: src
+        });
+      } catch (e) {}
+    });
+
+    return {
+      added,
+      updated,
+      total: accepted.length,
+      skippedInvalid,
+      correctedCount,
+      userName
+    };
+  }
+
+  if (importVocabFile) {
+    importVocabFile.addEventListener('change', async () => {
+      const file = importVocabFile.files && importVocabFile.files[0];
+      const userId = pendingImportUserId;
+      const userName = pendingImportUserName || userId;
+      importVocabFile.value = '';
+      if (!file || !userId) return;
+      try {
+        if (wordsDataStatus) showStatus(wordsDataStatus, `正在导入到「${userName}」…`, 'success');
+        const text = await file.text();
+        const result = await importWordsForUser(userId, userName, text);
+        if (wordsDataStatus) {
+          const extra = [];
+          if (result.correctedCount) extra.push(`纠正 ${result.correctedCount}`);
+          if (result.skippedInvalid) extra.push(`跳过无效 ${result.skippedInvalid}`);
+          showStatus(
+            wordsDataStatus,
+            `已导入「${result.userName}」：新增 ${result.added}，更新 ${result.updated}` +
+              (extra.length ? `（${extra.join('，')}）` : ''),
+            'success'
+          );
+        }
+        const currentUserId = await getCurrentUserId();
+        if (userId === currentUserId && typeof window.refreshVocabStats === 'function') {
+          window.refreshVocabStats();
+        }
+      } catch (err) {
+        if (wordsDataStatus) showStatus(wordsDataStatus, '导入失败：' + ((err && err.message) || 'unknown'), 'error');
+      }
+    });
+  }
+
+  function loadSharedLookupStats() {
+    if (!sharedLookupStats) return;
+    chrome.runtime.sendMessage({ action: 'getSharedLookupStats' }, (res) => {
+      if (chrome.runtime.lastError || !res || !res.success) {
+        sharedLookupStats.textContent = '读取共用缓存失败';
+        return;
+      }
+      const stats = res.stats || {};
+      sharedLookupStats.textContent =
+        `共 ${stats.total || 0} 个词 · 有短译 ${stats.withTranslation || 0} · 有详情 ${stats.withDict || 0}`;
+    });
+  }
+
+  function exportSharedLookup() {
+    chrome.runtime.sendMessage({ action: 'exportSharedLookup' }, (res) => {
+      if (chrome.runtime.lastError || !res || !res.success || !res.payload) {
+        if (sharedLookupStatus) showStatus(sharedLookupStatus, '导出失败：' + ((res && res.error) || chrome.runtime.lastError?.message || 'unknown'), 'error');
+        return;
+      }
+      const payload = res.payload;
+      if (!payload.count) {
+        if (sharedLookupStatus) showStatus(sharedLookupStatus, '共用缓存为空，无需导出', 'error');
+        return;
+      }
+      downloadTextFile(
+        `共用查询缓存_${new Date().toISOString().split('T')[0]}.json`,
+        JSON.stringify(payload, null, 2),
+        'application/json;charset=utf-8'
+      );
+      if (sharedLookupStatus) showStatus(sharedLookupStatus, `已导出 ${payload.count} 条共用缓存`, 'success');
+    });
+  }
+
+  function importSharedLookupFromText(text) {
+    let data;
+    try {
+      data = JSON.parse(String(text || ''));
+    } catch (e) {
+      return Promise.reject(new Error('不是有效的 JSON 文件'));
+    }
+    let entries = [];
+    if (Array.isArray(data)) entries = data;
+    else if (data && Array.isArray(data.entries)) entries = data.entries;
+    else if (data && data.type === 'wordnest-shared-lookup' && Array.isArray(data.entries)) entries = data.entries;
+    else return Promise.reject(new Error('JSON 中没有 entries 列表'));
+
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ action: 'importSharedLookup', entries }, (res) => {
+        if (chrome.runtime.lastError || !res || !res.success) {
+          reject(new Error((res && res.error) || chrome.runtime.lastError?.message || 'import_failed'));
+          return;
+        }
+        resolve(res);
+      });
+    });
+  }
+
+  if (exportSharedLookupBtn) exportSharedLookupBtn.addEventListener('click', exportSharedLookup);
+  if (refreshSharedLookupBtn) refreshSharedLookupBtn.addEventListener('click', loadSharedLookupStats);
+  if (importSharedLookupBtn && importSharedLookupFile) {
+    importSharedLookupBtn.addEventListener('click', () => {
+      importSharedLookupFile.value = '';
+      importSharedLookupFile.click();
+    });
+    importSharedLookupFile.addEventListener('change', async () => {
+      const file = importSharedLookupFile.files && importSharedLookupFile.files[0];
+      importSharedLookupFile.value = '';
+      if (!file) return;
+      try {
+        if (sharedLookupStatus) showStatus(sharedLookupStatus, '正在导入共用缓存…', 'success');
+        const text = await file.text();
+        const result = await importSharedLookupFromText(text);
+        loadSharedLookupStats();
+        if (sharedLookupStatus) {
+          showStatus(
+            sharedLookupStatus,
+            `共用缓存导入完成：写入 ${result.saved || 0}，跳过 ${result.skipped || 0}`,
+            'success'
+          );
+        }
+      } catch (err) {
+        if (sharedLookupStatus) showStatus(sharedLookupStatus, '导入失败：' + ((err && err.message) || 'unknown'), 'error');
+      }
+    });
+  }
+  loadSharedLookupStats();
 
   function archiveUserLookups(userId) {
     return new Promise((resolve) => {
@@ -1099,51 +1551,49 @@
     userList.innerHTML = '';
     
     if (Object.keys(users).length === 0) {
-      userList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">暂无用户</div>';
+      userList.innerHTML = '<div class="user-list-empty">暂无用户</div>';
       return;
     }
     
     Object.keys(users).forEach(userId => {
       const user = users[userId];
       const userItem = document.createElement('div');
-      userItem.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: white; border: 1px solid #e0e0e0; border-radius: 8px; transition: all 0.2s; min-height: 60px;';
-      userItem.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+      userItem.className = 'user-list-item';
       
       const isCurrent = userId === currentUserId;
       
       userItem.innerHTML = `
-        <div style="flex: 1; min-width: 0;">
-          <div style="font-weight: 600; color: #333; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+        <div class="user-list-main">
+          <div class="user-list-name">
             <span>${escapeHtmlText(user.name)}</span>
-            ${isCurrent ? '<span style="font-size: 11px; padding: 2px 8px; background: #667eea; color: white; border-radius: 12px;">当前用户</span>' : ''}
+            ${isCurrent ? '<span class="user-current-badge">当前用户</span>' : ''}
           </div>
-          <div style="font-size: 11px; color: #999;">
+          <div class="user-list-meta">
             创建时间: ${new Date(user.createdAt).toLocaleString('zh-CN')}
           </div>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-          <button type="button" class="btn btn-primary" data-action="export" style="padding: 8px 12px; font-size: 13px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; white-space: nowrap;">导出</button>
-          <button type="button" class="btn btn-danger" data-action="clear" style="padding: 8px 12px; font-size: 13px; background: #FF9800; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; white-space: nowrap;">清空</button>
-          <button type="button" class="btn btn-primary" data-action="rename" style="padding: 8px 12px; font-size: 13px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; white-space: nowrap;">更名</button>
-          <button type="button" class="btn btn-danger" data-action="delete" style="padding: 8px 12px; font-size: 13px; background: #f44336; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; white-space: nowrap;">删除</button>
+        <div class="user-list-actions">
+          <button type="button" class="btn" data-action="export">导出 CSV</button>
+          <button type="button" class="btn" data-action="import">导入 CSV</button>
+          <button type="button" class="btn" data-action="clear">清空</button>
+          <button type="button" class="btn" data-action="rename">更名</button>
+          <button type="button" class="btn" data-action="delete">删除</button>
         </div>
       `;
-      
-      // 悬停效果
-      userItem.addEventListener('mouseenter', () => {
-        userItem.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.15)';
-        userItem.style.transform = 'translateY(-1px)';
-      });
-      userItem.addEventListener('mouseleave', () => {
-        userItem.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-        userItem.style.transform = 'translateY(0)';
-      });
 
       const exportBtn = userItem.querySelector('[data-action="export"]');
       if (exportBtn) {
         exportBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           exportWordsForUser(userId, user.name);
+        });
+      }
+
+      const importBtn = userItem.querySelector('[data-action="import"]');
+      if (importBtn) {
+        importBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          pickImportFileForUser(userId, user.name);
         });
       }
 
@@ -1163,22 +1613,11 @@
         });
       }
       
-      // 删除按钮事件
       const deleteBtn = userItem.querySelector('[data-action="delete"]');
       if (deleteBtn) {
         deleteBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           deleteUser(userId, user.name);
-        });
-        
-        // 删除按钮悬停效果
-        deleteBtn.addEventListener('mouseenter', () => {
-          deleteBtn.style.background = '#d32f2f';
-          deleteBtn.style.transform = 'scale(1.05)';
-        });
-        deleteBtn.addEventListener('mouseleave', () => {
-          deleteBtn.style.background = '#f44336';
-          deleteBtn.style.transform = 'scale(1)';
         });
       }
       
@@ -1659,10 +2098,8 @@
     if (!dictStatus) return;
     dictStatus.textContent = message;
     dictStatus.style.display = 'block';
-    dictStatus.style.background = type === 'success' ? '#d4edda' : type === 'info' ? '#d1ecf1' : '#f8d7da';
-    dictStatus.style.color = type === 'success' ? '#155724' : type === 'info' ? '#0c5460' : '#721c24';
-    dictStatus.style.border = `1px solid ${type === 'success' ? '#c3e6cb' : type === 'info' ? '#bee5eb' : '#f5c6cb'}`;
-    dictStatus.style.whiteSpace = 'pre-line'; // 支持换行
+    dictStatus.className = 'dict-status-banner ' + (type || 'info');
+    dictStatus.style.whiteSpace = 'pre-line';
     
     if (type !== 'info') {
       setTimeout(() => {
@@ -1678,7 +2115,7 @@
     
     // 限制重试次数，避免无限循环
     if (retryCount >= 3) {
-      dictStatsContent.innerHTML = `<span style="color: #f44336;">多次重试失败，请重新加载扩展后重试</span>`;
+      dictStatsContent.innerHTML = `<span class="stat-danger">多次重试失败，请重新加载扩展后重试</span>`;
       return;
     }
     
@@ -1693,23 +2130,23 @@
         // 如果是端口关闭错误，等待后重试
         if (errorMsg.includes('port closed') || errorMsg.includes('message port')) {
           if (retryCount < 3) {
-            dictStatsContent.innerHTML = `<span style="color: #ff9800;">服务重启中，${3 - retryCount}秒后自动重试...</span>`;
+            dictStatsContent.innerHTML = `<span class="stat-warn">服务重启中，${3 - retryCount}秒后自动重试...</span>`;
             setTimeout(() => {
               loadDictionaryStats(retryCount + 1);
             }, 3000);
           } else {
-            dictStatsContent.innerHTML = `<span style="color: #f44336;">Service Worker 无法连接，请重新加载扩展</span>`;
+            dictStatsContent.innerHTML = `<span class="stat-danger">Service Worker 无法连接，请重新加载扩展</span>`;
           }
           return;
         } else {
-          dictStatsContent.innerHTML = `<span style="color: #f44336;">连接失败：${errorMsg}</span>`;
+          dictStatsContent.innerHTML = `<span class="stat-danger">连接失败：${errorMsg}</span>`;
           return;
         }
       }
       
       // Service Worker 可用，继续查询统计信息
       const timeout = setTimeout(() => {
-        dictStatsContent.innerHTML = `<span style="color: #ff9800;">查询超时，请点击"刷新统计"重试</span>`;
+        dictStatsContent.innerHTML = `<span class="stat-warn">查询超时，请点击"刷新统计"重试</span>`;
       }, 10000); // 10秒超时
       
       chrome.runtime.sendMessage({ action: 'getDictionaryStats' }, (response) => {
@@ -1718,7 +2155,7 @@
         if (chrome.runtime.lastError) {
           const errorMsg = chrome.runtime.lastError.message;
           console.error('获取统计信息失败:', errorMsg);
-          dictStatsContent.innerHTML = `<span style="color: #f44336;">加载失败：${errorMsg}</span>`;
+          dictStatsContent.innerHTML = `<span class="stat-danger">加载失败：${errorMsg}</span>`;
           return;
         }
         
@@ -1727,25 +2164,25 @@
           let html = '';
           
           if (stats.hasDictionary) {
-            html += `<div style="margin-bottom: 4px;">✅ <strong>词典单词数：</strong> <span style="color: #1976d2; font-weight: 600;">${stats.wordCount.toLocaleString()}</span> 个</div>`;
+            html += `<div style="margin-bottom: 4px;">✅ <strong>词典单词数：</strong> <span class="stat-accent">${stats.wordCount.toLocaleString()}</span> 个</div>`;
           } else {
-            html += `<div style="margin-bottom: 4px; color: #999;">❌ 未导入词典</div>`;
+            html += `<div style="margin-bottom: 4px;" class="stat-muted">❌ 未导入词典</div>`;
           }
           
           if (stats.hasLemmaMap) {
-            html += `<div style="margin-bottom: 4px;">✅ <strong>词形映射数：</strong> <span style="color: #1976d2; font-weight: 600;">${stats.lemmaCount.toLocaleString()}</span> 条</div>`;
+            html += `<div style="margin-bottom: 4px;">✅ <strong>词形映射数：</strong> <span class="stat-accent">${stats.lemmaCount.toLocaleString()}</span> 条</div>`;
           } else {
-            html += `<div style="margin-bottom: 4px; color: #ff9800;">⚠️ 未导入词形映射表（词形变化功能可能不完整）</div>`;
+            html += `<div style="margin-bottom: 4px;" class="stat-warn">⚠️ 未导入词形映射表（词形变化功能可能不完整）</div>`;
           }
           
           if (!stats.hasDictionary && !stats.hasLemmaMap) {
-            html = '<div style="color: #999;">暂无数据，请导入词典文件</div>';
+            html = '<div class="stat-muted">暂无数据，请导入词典文件</div>';
           }
           
           dictStatsContent.innerHTML = html;
         } else {
           const errorMsg = response?.error || '未知错误';
-          dictStatsContent.innerHTML = `<span style="color: #f44336;">加载失败：${errorMsg}</span>`;
+          dictStatsContent.innerHTML = `<span class="stat-danger">加载失败：${errorMsg}</span>`;
         }
       });
     });

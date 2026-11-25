@@ -607,6 +607,88 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/"/g, '&quot;');
   }
 
+  // 有道等来源的例句常含 <b>hello</b>；直接 escape 会显示成「源码」
+  function stripHtmlToPlainText(input) {
+    if (input == null) return '';
+    if (Array.isArray(input)) {
+      return input.map((x) => stripHtmlToPlainText(x)).filter(Boolean).join(' ');
+    }
+    if (typeof input === 'object') {
+      if (input.example != null) return stripHtmlToPlainText(input.example);
+      if (input.text != null) return stripHtmlToPlainText(input.text);
+      return '';
+    }
+    const s = String(input);
+    if (!s) return '';
+    if (!/[<&]/.test(s)) return s;
+    try {
+      const doc = new DOMParser().parseFromString(`<div>${s}</div>`, 'text/html');
+      return String((doc.body && doc.body.textContent) || '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    } catch (e) {
+      return s
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;|&apos;/gi, "'")
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+  }
+
+  function escapeDisplayText(text) {
+    return escapeHtml(stripHtmlToPlainText(text));
+  }
+
+  // 保留有道等来源的 <b>/<strong> 加粗；无标签时回退为高亮当前词
+  function formatExampleHtml(raw, highlightWord) {
+    const s = String(raw == null ? '' : raw);
+    if (!s) return '';
+
+    const segments = [];
+    const boldRe = /<(b|strong)>([\s\S]*?)<\/\1>/gi;
+    let last = 0;
+    let match;
+    let hasBold = false;
+    while ((match = boldRe.exec(s)) !== null) {
+      hasBold = true;
+      if (match.index > last) {
+        segments.push({ text: stripHtmlToPlainText(s.slice(last, match.index)), hl: false });
+      }
+      segments.push({ text: stripHtmlToPlainText(match[2]), hl: true });
+      last = match.index + match[0].length;
+    }
+
+    if (!hasBold) {
+      const plain = stripHtmlToPlainText(s);
+      const hw = String(highlightWord || '').trim();
+      if (hw) {
+        const re = new RegExp(`(\\b${hw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`, 'gi');
+        let i = 0;
+        let m;
+        while ((m = re.exec(plain)) !== null) {
+          if (m.index > i) segments.push({ text: plain.slice(i, m.index), hl: false });
+          segments.push({ text: m[1], hl: true });
+          i = m.index + m[1].length;
+        }
+        if (i < plain.length) segments.push({ text: plain.slice(i), hl: false });
+      }
+      if (!segments.length) segments.push({ text: plain, hl: false });
+    } else if (last < s.length) {
+      segments.push({ text: stripHtmlToPlainText(s.slice(last)), hl: false });
+    }
+
+    return segments.map((seg) => {
+      const t = escapeHtml(seg.text);
+      return seg.hl ? `<span class="word-ex-hl">${t}</span>` : t;
+    }).join('');
+  }
+
   const CHINESE_SOURCE_LABELS = {
     deepseek: 'DeepSeek',
     ecd: '离线英汉词典',
@@ -726,7 +808,7 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `
         <div class="word-detail-loading">
           <p>暂无详细信息</p>
-          <p style="margin-top:8px;">翻译：${escapeHtml(fallbackTranslation || '暂无')}</p>
+          <p style="margin-top:8px;">翻译：${escapeHtml((window.WordNestMeaning ? window.WordNestMeaning.cleanMeaningText(fallbackTranslation) : fallbackTranslation) || '暂无')}</p>
         </div>
       `;
       html += renderDeepseekActionHtml(dictData);
@@ -734,8 +816,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (!hasEnglishDefinitions(dictData) || !extractZhMeanings(dictData).length) {
+      const missingZh = !extractZhMeanings(dictData).length && !String(dictData.translation || '').trim();
+      const missingEn = !hasEnglishDefinitions(dictData);
+      const tip = missingZh && missingEn
+        ? '缺少中英文释义'
+        : (missingEn ? '缺少英英释义' : '缺少中文释义');
       html += `<div class="word-detail-actions" style="margin:0 0 8px;">
-        <button type="button" class="btn-detail-refresh" id="wordDetailRefreshBtn">重新获取释义</button>
+        <button type="button" class="btn-detail-refresh" id="wordDetailRefreshBtn">补充释义</button>
+        <span class="deepseek-action-hint">${tip}</span>
       </div>`;
     }
 
@@ -753,10 +841,18 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `</div>`;
     }
     if (dictData.usage) {
-      html += `<div class="word-detail-usage">用法：${escapeHtml(dictData.usage)}</div>`;
+      html += `<div class="word-detail-usage">用法：${escapeDisplayText(dictData.usage)}</div>`;
     }
     const zhMeanings = extractZhMeanings(dictData);
     const translation = dictData.translation || fallbackTranslation || '';
+    const M = window.WordNestMeaning;
+    const clean = (t) => (M ? M.cleanMeaningText(t) : String(t || '').trim());
+    // 简明释义 = 单词列表 / 网页悬停 / 记忆测验里用的那一条（fallbackTranslation 即列表里存的短译）
+    const brief = clean(fallbackTranslation);
+    const dictBrief = clean(dictData.translation);
+    const zhAllText = zhMeanings.map((m) => (m.definitions || []).map((d) => d.definition).join('；')).join('；');
+    const briefDisagrees = !!(M && brief && (zhAllText || dictBrief) &&
+      !M.meaningsOverlap(brief, zhAllText || dictBrief) && !M.meaningsOverlap(brief, dictBrief));
     const zhSrc = resolveZhSourceCode(dictData, chineseSourceCode);
     const zhLabel = detailSourceLabel(zhSrc);
     const enSrc = resolveEnSourceCode(dictData);
@@ -767,20 +863,33 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<span class="word-detail-source-tag" title="中文来源">来源：${escapeHtml(zhLabel)}</span>`;
     }
     html += `</div>`;
+    if (brief && (zhMeanings.length || (dictBrief && dictBrief !== brief))) {
+      // 仅作参考的一行小字：离线短译（双击/悬停/记忆测验用）；正文仍是下方查询到的释义
+      html += `<div class="word-detail-brief" style="margin:0 0 6px;font-size:12px;line-height:1.5;color:var(--muted);">`;
+      html += `离线短译：${escapeHtml(brief.length > 60 ? brief.slice(0, 60) + '…' : brief)}`;
+      if (briefDisagrees) {
+        html += ` <span title="离线短译与查询到的释义没有共同用词，记忆测验的答案可能不准" style="color:#d9534f;">⚠</span>`;
+        const proposed = shortMeaningFromDict(dictData);
+        if (proposed && proposed !== brief) {
+          html += ` <button type="button" class="btn-detail-refresh" id="wordDetailUseDictBriefBtn" style="font-size:12px;padding:1px 8px;" title="手动把短译改为从查询结果提炼的短释义（会同步到列表、悬停、记忆测验）">改用词典释义：${escapeHtml(proposed)}</button>`;
+        }
+      }
+      html += `</div>`;
+    }
     if (zhMeanings.length) {
       zhMeanings.forEach((meaning) => {
         html += `<div class="word-detail-pos">${escapeHtml(meaning.partOfSpeech || '')}</div>`;
         (meaning.definitions || []).slice(0, 8).forEach((def, index) => {
           html += `<div class="word-detail-def">`;
-          html += `<div class="word-detail-def-text">${index + 1}. ${escapeHtml(def.definition || '')}</div>`;
+          html += `<div class="word-detail-def-text">${index + 1}. ${escapeDisplayText(def.definition || '')}</div>`;
           if (def.example) {
-            html += `<div class="word-detail-example">${escapeHtml(def.example)}</div>`;
+            html += `<div class="word-detail-example">${formatExampleHtml(def.example, word)}</div>`;
           }
           html += `</div>`;
         });
       });
     } else if (translation) {
-      html += `<div class="word-detail-translation">${escapeHtml(translation)}</div>`;
+      html += `<div class="word-detail-translation">${escapeDisplayText(clean(translation))}</div>`;
     } else {
       html += `<div class="word-detail-loading">暂无中文释义</div>`;
     }
@@ -796,9 +905,9 @@ document.addEventListener('DOMContentLoaded', () => {
         html += `<div class="word-detail-pos">${escapeHtml(meaning.partOfSpeech || '')}</div>`;
         (meaning.definitions || []).slice(0, 3).forEach((def, index) => {
           html += `<div class="word-detail-def">`;
-          html += `<div class="word-detail-def-text">${index + 1}. ${escapeHtml(def.definition || '')}</div>`;
+          html += `<div class="word-detail-def-text">${index + 1}. ${escapeDisplayText(def.definition || '')}</div>`;
           if (def.example) {
-            html += `<div class="word-detail-example">${escapeHtml(def.example)}</div>`;
+            html += `<div class="word-detail-example">${formatExampleHtml(def.example, word)}</div>`;
           }
           html += `</div>`;
         });
@@ -985,7 +1094,14 @@ document.addEventListener('DOMContentLoaded', () => {
           lastError = parsed.ok ? 'empty_result' : (parsed.error || 'invalid_json');
           continue;
         }
-        const converted = convertDatamuseToDictFormat(cleanWord, parsed.data[0]);
+        const row = parsed.data[0];
+        const rowWord = String((row && row.word) || '').toLowerCase();
+        // Datamuse sp= 会返回近形词；必须整词一致才算命中
+        if (rowWord !== query) {
+          lastError = 'spelling_mismatch';
+          continue;
+        }
+        const converted = convertDatamuseToDictFormat(cleanWord, row);
         if (converted && hasRichMeanings(converted)) {
           appendDeepseekLog({
             word: cleanWord,
@@ -1160,9 +1276,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const pairs = data.blng_sents_part && Array.isArray(data.blng_sents_part['sentence-pair'])
       ? data.blng_sents_part['sentence-pair'] : [];
     if (meanings.length && pairs.length) {
+      // 保留 <b> 标记，展示时再安全转成加粗高亮
       const eng = String((pairs[0] && (pairs[0]['sentence-eng'] || pairs[0].sentence)) || '').trim();
+      const zh = stripHtmlToPlainText((pairs[0] && pairs[0]['sentence-translation']) || '');
       if (eng && meanings[0].definitions[0] && !meanings[0].definitions[0].example) {
         meanings[0].definitions[0].example = eng;
+        if (zh) meanings[0].definitions[0].exampleTranslation = zh;
       }
     }
     const translation = meanings
@@ -1442,6 +1561,94 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isLookupSettled(dictData) || dictData.lookupFullChainTried === true) {
       await writeSharedLookup(word, dictData);
     }
+  }
+
+  /**
+   * 列表/悬停只用「短译」（离线/有道/Google 等），不拿详情里的长中文义项去盖。
+   * 详情中文义项 + 英英留给探究；短译保证阅读时一眼能看懂。
+   */
+  function isUsableShortTranslation(text) {
+    const t = String(text || '').trim();
+    if (!t) return false;
+    if (t === '翻译中...' || t === '翻译失败' || t === '翻译失败，请检查网络' || t === '暂无翻译') {
+      return false;
+    }
+    return true;
+  }
+
+  function pickShortTranslationForList(dictData, fallback, existingStored, opts) {
+    const preferDict = !!(opts && opts.preferDictTranslation);
+    const fromDict = String((dictData && dictData.translation) || '').trim();
+    // 手动 DeepSeek 等：允许用详情带回的短译更新列表
+    if (preferDict && isUsableShortTranslation(fromDict)) return fromDict;
+    // 1. 已有清晰短译 → 原样保留（悬停/阅读体验）
+    if (isUsableShortTranslation(existingStored)) return String(existingStored).trim();
+    if (isUsableShortTranslation(fallback)) return String(fallback).trim();
+    // 2. 详情上的短译字段（翻译通道），不用 zhMeanings 长列表去盖
+    if (isUsableShortTranslation(fromDict)) return fromDict;
+    // 3. 救急：中文义项第一条，截断
+    const zh = extractZhMeanings(dictData);
+    for (let i = 0; i < zh.length; i++) {
+      const defs = zh[i] && zh[i].definitions;
+      if (!Array.isArray(defs)) continue;
+      for (let j = 0; j < defs.length; j++) {
+        const line = String((defs[j] && defs[j].definition) || '').trim();
+        if (!line) continue;
+        return line.length > 48 ? (line.slice(0, 48) + '…') : line;
+      }
+    }
+    return '';
+  }
+
+  async function syncWordListTranslation(word, dictData, fallbackTranslation, opts) {
+    if (!word) {
+      if (typeof loadWordList === 'function') loadWordList();
+      return '';
+    }
+    const currentUserId = await getCurrentUserId();
+    const userKey = `user_${currentUserId}_`;
+    const lower = String(word).toLowerCase();
+    const zhKey = `${userKey}wordTranslations`;
+    const zhCnKey = `${userKey}wordChineseTranslations`;
+    const srcKey = `${userKey}wordChineseSources`;
+    const store = await new Promise((resolve) => {
+      chrome.storage.local.get([zhKey, zhCnKey, srcKey], resolve);
+    });
+    const tMap = new Map(store[zhKey] || []);
+    const cMap = new Map(store[zhCnKey] || []);
+    const sMap = new Map(store[srcKey] || []);
+    const existing = tMap.get(word) || tMap.get(lower) || cMap.get(word) || cMap.get(lower) || '';
+    const text = pickShortTranslationForList(dictData, fallbackTranslation, existing, opts);
+    if (!text) {
+      if (typeof loadWordList === 'function') loadWordList();
+      return '';
+    }
+    const keepExisting = isUsableShortTranslation(existing) && text === String(existing).trim();
+    if (!keepExisting) {
+      tMap.set(lower, text);
+      cMap.set(lower, text);
+      if (word !== lower) {
+        if (tMap.has(word)) tMap.set(word, text);
+        if (cMap.has(word)) cMap.set(word, text);
+      }
+      const src = String(
+        (dictData && (dictData.translationSource || dictData.zhSourceAbbr)) || ''
+      ).trim();
+      if (src && ((opts && opts.preferDictTranslation) || !isUsableShortTranslation(existing))) {
+        sMap.set(lower, src);
+        if (word !== lower && sMap.has(word)) sMap.set(word, src);
+      }
+      await new Promise((resolve) => {
+        chrome.storage.local.set({
+          [zhKey]: Array.from(tMap.entries()),
+          [zhCnKey]: Array.from(cMap.entries()),
+          [srcKey]: Array.from(sMap.entries())
+        }, resolve);
+      });
+    }
+    if (typeof loadWordList === 'function') loadWordList();
+    if (typeof loadStats === 'function') loadStats();
+    return text;
   }
 
   function sanitizeApiKey(key) {
@@ -1748,8 +1955,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  const wordDetailHistory = [];
+  let wordDetailCurrent = null;
+  const wordDetailBack = document.getElementById('wordDetailBack');
+
+  function updateWordDetailBackBtn() {
+    if (!wordDetailBack) return;
+    const canBack = wordDetailHistory.length > 0;
+    wordDetailBack.hidden = !canBack;
+    wordDetailBack.disabled = !canBack;
+  }
+
   function closeWordDetail() {
     if (wordDetailOverlay) wordDetailOverlay.classList.remove('show');
+    wordDetailHistory.length = 0;
+    wordDetailCurrent = null;
+    updateWordDetailBackBtn();
+  }
+
+  async function goBackWordDetail() {
+    if (!wordDetailHistory.length) return;
+    const prev = wordDetailHistory.pop();
+    updateWordDetailBackBtn();
+    if (!prev || !prev.word) return;
+    await openWordDetail(prev.word, prev.translation || '', false, { skipHistory: true });
   }
 
   function bindWordDetailDeepseekButton(word, fallbackTranslation, requestId) {
@@ -1799,30 +2028,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 'deepseek');
         await saveWordDictionaryData(word, dictData);
         if (onlineResult.data.translation) {
-          // 同步生词本中文与来源，避免测试选项与详情不一致
-          const zhKey = `${userKey}wordTranslations`;
-          const zhCnKey = `${userKey}wordChineseTranslations`;
-          const zhStore = await new Promise((resolve) => {
-            chrome.storage.local.get([zhKey, zhCnKey], resolve);
-          });
-          const tMap = new Map(zhStore[zhKey] || []);
-          const cMap = new Map(zhStore[zhCnKey] || []);
-          tMap.set(lower, onlineResult.data.translation);
-          cMap.set(lower, onlineResult.data.translation);
-          await new Promise((resolve) => {
-            chrome.storage.local.set({
-              [zhKey]: Array.from(tMap.entries()),
-              [zhCnKey]: Array.from(cMap.entries())
-            }, resolve);
-          });
           await saveWordChineseSource(word, 'deepseek');
         }
+        const syncedZh = await syncWordListTranslation(
+          word,
+          dictData,
+          fallbackTranslation,
+          { preferDictTranslation: true }
+        );
         if (wordDetailOverlay.dataset.requestId !== requestId) return;
-        wordDetailBody.innerHTML = renderWordDetailHtml(word, dictData, fallbackTranslation);
+        wordDetailBody.innerHTML = renderWordDetailHtml(word, dictData, syncedZh || fallbackTranslation);
         bindWordDetailSpeakButtons(word);
-        bindWordDetailDeepseekButton(word, fallbackTranslation, requestId);
-        bindWordDetailRefreshButton(word, fallbackTranslation, requestId);
-        loadWordList();
+        bindWordDetailDeepseekButton(word, syncedZh || fallbackTranslation, requestId);
+        bindWordDetailRefreshButton(word, syncedZh || fallbackTranslation, requestId);
+        bindUseDictBriefButton(word, dictData, requestId);
       } else {
         btn.disabled = false;
         btn.textContent = original;
@@ -1835,7 +2054,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function normalizeLookupWord(raw) {
-    const text = String(raw || '').trim();
+    const text = String(raw || '')
+      .replace(/[\u00AD\u200B-\u200D\uFEFF\u2060\u180E]/g, '')
+      .replace(/[\u2010-\u2015\u2212]/g, '-')
+      .replace(/[–—]/g, '-')
+      .trim();
     if (!text) return '';
     const match = text.match(/[A-Za-z][A-Za-z'-]*/);
     return match ? match[0].toLowerCase() : '';
@@ -1946,12 +2169,68 @@ document.addEventListener('DOMContentLoaded', () => {
     return (await tryYoudao()) || (await tryOffline()) || (await tryGoogle());
   }
 
+  function validateVocabWordRemote(word) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ action: 'validateVocabWord', word }, (res) => {
+          if (chrome.runtime.lastError || !res) {
+            resolve({
+              ok: true,
+              reason: 'validate_failed',
+              word: String(word || '').toLowerCase(),
+              original: String(word || ''),
+              corrected: false,
+              suggestions: []
+            });
+            return;
+          }
+          resolve(res);
+        });
+      } catch (e) {
+        resolve({
+          ok: true,
+          reason: 'validate_failed',
+          word: String(word || '').toLowerCase(),
+          original: String(word || ''),
+          corrected: false,
+          suggestions: []
+        });
+      }
+    });
+  }
+
   async function addLookupWordToVocab(rawWord, options = {}) {
     const opts = options || {};
-    const word = normalizeLookupWord(rawWord);
+    let word = normalizeLookupWord(rawWord);
     if (!word) {
       if (!opts.silent) setLookupHint('请输入有效的英文单词', 'error');
       return null;
+    }
+
+    const validation = await validateVocabWordRemote(word);
+    if (!validation || !validation.ok) {
+      const tips = (validation && Array.isArray(validation.suggestions) ? validation.suggestions : [])
+        .slice(0, 3)
+        .filter(Boolean);
+      if (!opts.silent) {
+        setLookupHint(
+          tips.length
+            ? `「${word}」不是有效单词。你是不是想找：${tips.join(' / ')}？`
+            : `「${word}」不是有效英文单词，未加入生词本`,
+          'error'
+        );
+      }
+      return null;
+    }
+    if (validation.corrected && validation.word) {
+      if (!opts.silent) {
+        setLookupHint(`已纠正拼写：${validation.original || word} → ${validation.word}`, 'ok');
+      }
+      word = normalizeLookupWord(validation.word);
+      if (!word) {
+        if (!opts.silent) setLookupHint('纠正后的单词无效', 'error');
+        return null;
+      }
     }
 
     const currentUserId = await getCurrentUserId();
@@ -2077,25 +2356,160 @@ document.addEventListener('DOMContentLoaded', () => {
   (function bindWordLookup() {
     const input = document.getElementById('wordLookupInput');
     const btn = document.getElementById('wordLookupBtn');
-    if (btn) btn.addEventListener('click', handleWordLookup);
+    const suggestEl = document.getElementById('wordLookupSuggest');
+    let suggestTimer = null;
+    let suggestItems = [];
+    let activeIndex = -1;
+    let suggestSeq = 0;
+
+    function hideSuggest() {
+      if (!suggestEl) return;
+      suggestEl.classList.remove('show');
+      suggestEl.innerHTML = '';
+      suggestItems = [];
+      activeIndex = -1;
+    }
+
+    function renderSuggest(items) {
+      if (!suggestEl) return;
+      suggestItems = Array.isArray(items) ? items.slice(0, 8) : [];
+      activeIndex = suggestItems.length ? 0 : -1;
+      if (!suggestItems.length) {
+        hideSuggest();
+        return;
+      }
+      suggestEl.innerHTML = suggestItems.map((word, index) =>
+        `<li role="option" data-index="${index}" class="${index === activeIndex ? 'active' : ''}">${escapeHtml(word)}</li>`
+      ).join('');
+      suggestEl.classList.add('show');
+    }
+
+    function escapeHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function applyActiveClass() {
+      if (!suggestEl) return;
+      const nodes = suggestEl.querySelectorAll('li[data-index]');
+      nodes.forEach((node) => {
+        const idx = Number(node.getAttribute('data-index'));
+        node.classList.toggle('active', idx === activeIndex);
+      });
+    }
+
+    function pickSuggest(index) {
+      const word = suggestItems[index];
+      if (!word || !input) return;
+      input.value = word;
+      hideSuggest();
+      input.focus();
+    }
+
+    function requestSuggest(raw) {
+      const prefix = String(raw || '').trim();
+      if (prefix.length < 2 || /\s/.test(prefix)) {
+        hideSuggest();
+        return;
+      }
+      const seq = ++suggestSeq;
+      chrome.runtime.sendMessage({ action: 'suggestVocabWords', prefix, limit: 8 }, (res) => {
+        if (seq !== suggestSeq) return;
+        if (chrome.runtime.lastError || !res || !res.success) {
+          hideSuggest();
+          return;
+        }
+        renderSuggest(res.suggestions || []);
+      });
+    }
+
+    if (btn) btn.addEventListener('click', () => {
+      hideSuggest();
+      handleWordLookup();
+    });
     if (input) {
+      input.addEventListener('input', () => {
+        clearTimeout(suggestTimer);
+        suggestTimer = setTimeout(() => requestSuggest(input.value), 160);
+      });
       input.addEventListener('keydown', (e) => {
+        const open = suggestEl && suggestEl.classList.contains('show') && suggestItems.length;
+        if (open && e.key === 'ArrowDown') {
+          e.preventDefault();
+          activeIndex = (activeIndex + 1) % suggestItems.length;
+          applyActiveClass();
+          return;
+        }
+        if (open && e.key === 'ArrowUp') {
+          e.preventDefault();
+          activeIndex = (activeIndex - 1 + suggestItems.length) % suggestItems.length;
+          applyActiveClass();
+          return;
+        }
+        if (open && e.key === 'Escape') {
+          e.preventDefault();
+          hideSuggest();
+          return;
+        }
         if (e.key === 'Enter') {
           e.preventDefault();
+          if (open && activeIndex >= 0 && suggestItems[activeIndex]) {
+            pickSuggest(activeIndex);
+          }
+          hideSuggest();
           handleWordLookup();
         }
+      });
+      input.addEventListener('blur', () => {
+        setTimeout(hideSuggest, 150);
+      });
+    }
+    if (suggestEl) {
+      suggestEl.addEventListener('mousedown', (e) => {
+        const li = e.target && e.target.closest ? e.target.closest('li[data-index]') : null;
+        if (!li) return;
+        e.preventDefault();
+        pickSuggest(Number(li.getAttribute('data-index')));
       });
     }
   })();
 
-  async function openWordDetail(word, fallbackTranslation, forceRefresh) {
+  async function openWordDetail(word, fallbackTranslation, forceRefresh, options) {
     if (!wordDetailOverlay || !wordDetailBody || !wordDetailTitle) return;
+    const opts = options || {};
+    const nextWord = String(word || '').trim();
+    if (!nextWord) return;
+    const nextTranslation = fallbackTranslation || '';
+    const wasOpen = wordDetailOverlay.classList.contains('show');
+
+    // 新开详情：清空历史；详情内跳到另一词：压入历史
+    if (!opts.skipHistory && !forceRefresh) {
+      if (!wasOpen) {
+        wordDetailHistory.length = 0;
+      } else if (wordDetailCurrent) {
+        const prevLower = String(wordDetailCurrent.word || '').toLowerCase();
+        if (prevLower && prevLower !== nextWord.toLowerCase()) {
+          wordDetailHistory.push({
+            word: wordDetailCurrent.word,
+            translation: wordDetailCurrent.translation || ''
+          });
+        }
+      }
+    }
+
+    wordDetailCurrent = { word: nextWord, translation: nextTranslation };
+    updateWordDetailBackBtn();
+
     // 供单词记忆等模块复用同一浮窗
-    const requestId = `${word}_${Date.now()}`;
+    const requestId = `${nextWord}_${Date.now()}`;
     wordDetailOverlay.dataset.requestId = requestId;
-    wordDetailTitle.textContent = word;
+    wordDetailTitle.textContent = nextWord;
     wordDetailBody.innerHTML = `<div class="word-detail-loading">正在加载详情...</div>`;
     wordDetailOverlay.classList.add('show');
+    word = nextWord;
 
     const currentUserId = await getCurrentUserId();
     const userKey = `user_${currentUserId}_`;
@@ -2207,10 +2621,83 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (wordDetailOverlay.dataset.requestId !== requestId) return;
+    // 详情有中文时回写列表/悬停短译，避免两处不一致
+    if (dictData) {
+      const synced = await syncWordListTranslation(word, dictData, translation);
+      if (synced) {
+        translation = synced;
+        chineseSourceCode = chineseSourceCode
+          || dictData.translationSource
+          || dictData.zhSourceAbbr
+          || '';
+      }
+    }
+    if (wordDetailOverlay.dataset.requestId !== requestId) return;
+    if (wordDetailCurrent && String(wordDetailCurrent.word || '').toLowerCase() === String(word || '').toLowerCase()) {
+      wordDetailCurrent.translation = translation || wordDetailCurrent.translation || '';
+    }
     wordDetailBody.innerHTML = renderWordDetailHtml(word, dictData, translation, chineseSourceCode);
     bindWordDetailSpeakButtons(word);
     bindWordDetailDeepseekButton(word, translation, requestId);
     bindWordDetailRefreshButton(word, translation, requestId);
+    bindUseDictBriefButton(word, dictData, requestId);
+    updateWordDetailBackBtn();
+  }
+
+  // 从查询到的释义里提炼一条短译（记忆测验用）：取前 1~2 个中文义项，去词性/编号/例句/括号注释，限 24 字
+  const SHORT_MEANING_MAX = 24;
+  function shortMeaningFromDict(dictData) {
+    if (!dictData) return '';
+    const M = window.WordNestMeaning;
+    const clean = (t) => (M ? M.cleanMeaningText(t) : String(t || '').trim());
+    const tidy = (t) => clean(t)
+      .replace(/^\s*\d+[.、．)]\s*/, '')
+      .replace(/\b(?:n|v|vt|vi|adj|adv|prep|conj|pron|int|num|art|abbr|aux|a|ad)\.\s*/gi, '')
+      .replace(/\[[^\]]*\]|【[^】]*】|<[^>]*>/g, '')
+      .replace(/[（(][^）)]*[）)]/g, '')
+      .trim();
+    const senses = [];
+    const push = (t) => {
+      tidy(t).split(/[；;。]/).forEach((part) => {
+        const x = part.replace(/^[，,、\s]+|[，,、\s]+$/g, '').trim();
+        const han = (x.match(/[\u4e00-\u9fff]/g) || []).length;
+        // 只要以中文为主的义项（避免「Physical Education 的缩写」这类英文夹杂长句）
+        if (x && han >= 2 && han / x.length >= 0.6 && !senses.includes(x)) senses.push(x);
+      });
+    };
+    const zh = extractZhMeanings(dictData);
+    // 词典短译本身够短就直接用；否则从中文义项里取前两条
+    const fromTranslation = tidy(dictData.translation);
+    if (fromTranslation && fromTranslation.length <= SHORT_MEANING_MAX) {
+      push(dictData.translation);
+    } else {
+      zh.forEach((m) => (m.definitions || []).forEach((d) => push(d && d.definition)));
+      if (!senses.length) push(dictData.translation);
+    }
+    let out = '';
+    for (const sense of senses.slice(0, 2)) {
+      const next = out ? `${out}；${sense}` : sense;
+      if (next.length > SHORT_MEANING_MAX) {
+        if (!out) out = sense.slice(0, SHORT_MEANING_MAX) + '…';
+        break;
+      }
+      out = next;
+    }
+    return out;
+  }
+
+  // 短译与查询结果对不上时：用户手动点按钮，改用从查询结果提炼的短译（同步到列表/悬停/测验）
+  function bindUseDictBriefButton(word, dictData, requestId) {
+    const btn = document.getElementById('wordDetailUseDictBriefBtn');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      if (btn.disabled || wordDetailOverlay.dataset.requestId !== requestId) return;
+      btn.disabled = true;
+      const text = shortMeaningFromDict(dictData);
+      if (!text) { btn.disabled = false; return; }
+      await syncWordListTranslation(word, { ...(dictData || {}), translation: text }, text, { preferDictTranslation: true });
+      await openWordDetail(word, text, false, { skipHistory: true });
+    });
   }
 
   function bindWordDetailRefreshButton(word, fallbackTranslation, requestId) {
@@ -2220,16 +2707,24 @@ document.addEventListener('DOMContentLoaded', () => {
       if (btn.disabled) return;
       if (wordDetailOverlay.dataset.requestId !== requestId) return;
       btn.disabled = true;
-      btn.textContent = '正在重新获取...';
-      await openWordDetail(word, fallbackTranslation, true);
+      btn.textContent = '正在补充...';
+      await openWordDetail(word, fallbackTranslation, true, { skipHistory: true });
     });
   }
 
   window.openWordDetail = openWordDetail;
   window.closeWordDetail = closeWordDetail;
+  window.goBackWordDetail = goBackWordDetail;
 
   if (wordDetailClose) {
     wordDetailClose.addEventListener('click', closeWordDetail);
+  }
+  if (wordDetailBack) {
+    wordDetailBack.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      goBackWordDetail();
+    });
   }
   if (wordDetailOverlay) {
     wordDetailOverlay.addEventListener('click', (e) => {
@@ -2239,6 +2734,39 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeWordDetail();
   });
+
+  // 详情页内双击生词：加入生词本并切换到该词详情
+  let wordDetailExploreBusy = false;
+  if (wordDetailBody) {
+    wordDetailBody.addEventListener('dblclick', async (e) => {
+      if (wordDetailExploreBusy) return;
+      if (!wordDetailOverlay || !wordDetailOverlay.classList.contains('show')) return;
+      if (e.target.closest('button, a, input, textarea, select, .word-detail-speak')) return;
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const selection = window.getSelection();
+      let raw = selection ? selection.toString() : '';
+      raw = String(raw || '').replace(/[–—]/g, '-');
+      const candidates = raw.match(/[A-Za-z][A-Za-z'-]*/g);
+      if (!candidates || !candidates.length) return;
+      const picked = candidates.find((w) => w.includes('-')) || candidates[0];
+      if (!picked || picked.length < 2) return;
+
+      wordDetailExploreBusy = true;
+      try {
+        setLookupHint('正在打开选中单词...', '');
+        const added = await addLookupWordToVocab(picked);
+        if (!added) return;
+        loadStats();
+        loadWordList();
+        await openWordDetail(added.word, added.translation);
+      } catch (err) {
+        setLookupHint((err && err.message) || '加入失败', 'error');
+      } finally {
+        wordDetailExploreBusy = false;
+      }
+    });
+  }
 
   const wordSortBtns = document.getElementById('wordSortBtns');
   const WORD_SORT_KEY = 'wordListSortMode';
@@ -2334,9 +2862,11 @@ document.addEventListener('DOMContentLoaded', () => {
       `${userKey}wordTranslations`,
       `${userKey}wordChineseSources`,
       `${userKey}wordStatus`,
-      `${userKey}wordNotes`
+      `${userKey}wordNotes`,
+      `${userKey}wordReview`
     ], (result) => {
       const words = result[`${userKey}savedWords`] || [];
+      const reviews = new Map(result[`${userKey}wordReview`] || []);
       const translations = new Map(result[`${userKey}wordTranslations`] || []);
       const chineseSources = new Map(result[`${userKey}wordChineseSources`] || []);
       const statuses = new Map(result[`${userKey}wordStatus`] || []);
@@ -2347,7 +2877,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (words.length === 0) {
         wordListEl.innerHTML = `
           <div class="empty-state">
-            <div class="empty-state-text">暂无单词<br><small style="color: #999;">上方查词可直接加入，或双击网页中的英文单词收藏</small></div>
+            <div class="empty-state-text">暂无单词<br><small style="color: var(--muted);">上方查词可直接加入，或双击网页中的英文单词收藏</small></div>
           </div>
         `;
         return;
@@ -2363,6 +2893,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const note = notes.get(word) || '';
         const statusText = status === 'mastered' ? '已记住' : '未记住';
         const statusClass = status === 'mastered' ? 'badge-mastered' : 'badge-new';
+        const review = reviews.get(String(word).toLowerCase());
+        const reviewText = (review && window.WordNestSRS)
+          ? (review.due <= Date.now() ? '待复习' : `${window.WordNestSRS.formatIn(review.due - Date.now())}复习`)
+          : '';
 
         const wordItem = document.createElement('div');
         wordItem.className = 'word-item';
@@ -2370,10 +2904,11 @@ document.addEventListener('DOMContentLoaded', () => {
         wordItem.innerHTML = `
           <div class="word-info">
             <div class="word-name">${escapeHtml(word)}</div>
-            <div class="word-meaning">${escapeHtml(translation || '暂无翻译')}${zhLabel ? `<span class="zh-source-tag"> · ${escapeHtml(zhLabel)}</span>` : ''}</div>
+            <div class="word-meaning">${escapeHtml((window.WordNestMeaning ? window.WordNestMeaning.cleanMeaningText(translation) : translation) || '暂无翻译')}${zhLabel ? `<span class="zh-source-tag"> · ${escapeHtml(zhLabel)}</span>` : ''}</div>
             ${note ? `<div class="word-note">备注：${escapeHtml(note)}</div>` : ''}
           </div>
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            ${reviewText ? `<span class="word-review-due" style="font-size:12px;color:var(--muted);">${escapeHtml(reviewText)}</span>` : ''}
             <span class="word-badge ${statusClass}">${statusText}</span>
             <button type="button" class="btn btn-primary btn-note" data-word="${escapeHtml(word)}" style="padding:4px 10px; font-size:12px;">备注</button>
             <button type="button" class="btn-remove" data-word="${escapeHtml(word)}">删除</button>
@@ -2445,7 +2980,8 @@ document.addEventListener('DOMContentLoaded', () => {
       `${userKey}wordChineseTranslations`,
       `${userKey}wordChineseSources`,
       `${userKey}wordStatus`,
-      `${userKey}wordNotes`
+      `${userKey}wordNotes`,
+      `${userKey}wordReview`
     ], (result) => {
       const savedWords = result[`${userKey}savedWords`] || [];
       const wordTranslations = result[`${userKey}wordTranslations`] || [];
@@ -2473,6 +3009,7 @@ document.addEventListener('DOMContentLoaded', () => {
       userData[`${userKey}wordChineseSources`] = newWordChineseSources;
       userData[`${userKey}wordStatus`] = newWordStatus;
       userData[`${userKey}wordNotes`] = newWordNotes;
+      userData[`${userKey}wordReview`] = (result[`${userKey}wordReview`] || []).filter(([w]) => String(w).toLowerCase() !== lowerWord);
       
       chrome.storage.local.set(userData, () => {
         loadStats();
@@ -2494,7 +3031,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const userKey = `user_${currentUserId}_`;
       
       // 如果当前用户的词库数据变化，重新加载
-      if (changes[`${userKey}savedWords`] || changes[`${userKey}wordStatus`]) {
+      if (changes[`${userKey}savedWords`] || changes[`${userKey}wordStatus`] || changes[`${userKey}wordReview`]) {
         loadStats();
         loadWordList();
       }

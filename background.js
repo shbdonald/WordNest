@@ -243,6 +243,7 @@ let cachedOfflineDictKeys = null;
 
 function invalidateOfflineDictKeyCache() {
   cachedOfflineDictKeys = null;
+  invalidateOfflineSuggestCache();
 }
 
 async function getOfflineDictKeys() {
@@ -503,6 +504,377 @@ async function getDictionaryStats() {
       error: error.message
     };
   }
+}
+
+function stripInvisibleWordNoise(raw) {
+  return String(raw || '')
+    // 文档站（如 Sphinx/readthedocs）常插入软连字符/零宽字符，双击选中会带上
+    .replace(/[\u00AD\u200B-\u200D\uFEFF\u2060\u180E]/g, '')
+    .replace(/[\u2010-\u2015\u2212]/g, '-') // 各类 dash → '-'
+    .replace(/[–—]/g, '-')
+    .trim();
+}
+
+function normalizeVocabCandidate(raw) {
+  const text = stripInvisibleWordNoise(raw);
+  if (!text || /\s/.test(text)) return '';
+  if (!/^[A-Za-z][A-Za-z'-]{0,63}$/.test(text)) return '';
+  return text.toLowerCase();
+}
+
+function levenshteinDistance(a, b) {
+  const s = String(a || '');
+  const t = String(b || '');
+  const n = s.length;
+  const m = t.length;
+  if (!n) return m;
+  if (!m) return n;
+  const row = new Array(m + 1);
+  for (let j = 0; j <= m; j++) row[j] = j;
+  for (let i = 1; i <= n; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= m; j++) {
+      const cur = row[j];
+      const cost = s.charCodeAt(i - 1) === t.charCodeAt(j - 1) ? 0 : 1;
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + cost);
+      prev = cur;
+    }
+  }
+  return row[m];
+}
+
+function maxSpellEditDistance(word) {
+  const n = String(word || '').length;
+  if (n <= 4) return 1;
+  return 2;
+}
+
+async function existsInOfflineDictStrict(word) {
+  const lower = String(word || '').toLowerCase().trim();
+  if (!lower) return false;
+  try {
+    const direct = await queryWordFromIndexedDB(lower);
+    if (direct) return true;
+  } catch (e) {}
+  try {
+    const lemma = await queryLemmaFromIndexedDB(lower);
+    if (lemma) {
+      const lemmaHit = await queryWordFromIndexedDB(String(lemma).toLowerCase());
+      if (lemmaHit) return true;
+    }
+  } catch (e) {}
+  // 旧版 chrome.storage 小词库
+  try {
+    const storageHit = await new Promise((resolve) => {
+      chrome.storage.local.get(['offlineDictionary'], (result) => {
+        const dict = result.offlineDictionary || {};
+        resolve(!!(dict[lower] || dict[word]));
+      });
+    });
+    if (storageHit) return true;
+  } catch (e) {}
+  return false;
+}
+
+async function fetchJsonWithTimeout(url, timeoutMs = 4000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { method: 'GET', signal: controller.signal });
+    clearTimeout(timer);
+    if (!response.ok) {
+      return { ok: false, status: response.status, data: null };
+    }
+    const data = await response.json();
+    return { ok: true, status: response.status, data };
+  } catch (e) {
+    clearTimeout(timer);
+    return { ok: false, status: 0, data: null, error: (e && e.message) || 'fetch_failed' };
+  }
+}
+
+async function existsInFreeDictionary(word) {
+  const lower = String(word || '').toLowerCase().trim();
+  if (!lower) return { found: false, conclusive: false };
+  const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(lower)}`;
+  const res = await fetchJsonWithTimeout(url, 4500);
+  if (res.status === 404) return { found: false, conclusive: true };
+  if (!res.ok) return { found: false, conclusive: false };
+  const found = !!(Array.isArray(res.data) && res.data.length && res.data[0] && res.data[0].word);
+  return { found, conclusive: true };
+}
+
+async function existsInDatamuseExact(word) {
+  const lower = String(word || '').toLowerCase().trim();
+  if (!lower) return { found: false, conclusive: false };
+  const url = `https://api.datamuse.com/words?sp=${encodeURIComponent(lower)}&md=d&max=5`;
+  const res = await fetchJsonWithTimeout(url, 4500);
+  if (!res.ok || !Array.isArray(res.data)) return { found: false, conclusive: false };
+  const found = res.data.some((row) => {
+    const w = String((row && row.word) || '').toLowerCase();
+    // 精确命中即可；defs 偶发缺失时不应判死刑
+    return w === lower;
+  });
+  return { found, conclusive: true };
+}
+
+async function fetchSpellingSuggestions(word) {
+  const lower = String(word || '').toLowerCase().trim();
+  if (!lower) return [];
+  const maxDist = maxSpellEditDistance(lower);
+  const seen = new Set();
+  const ranked = [];
+
+  const pushCandidate = (raw, scoreBoost) => {
+    const cand = normalizeVocabCandidate(raw);
+    if (!cand || cand === lower || seen.has(cand)) return;
+    const dist = levenshteinDistance(lower, cand);
+    if (dist < 1 || dist > maxDist) return;
+    // 长度差过大通常不是拼写纠错
+    if (Math.abs(cand.length - lower.length) > maxDist) return;
+    seen.add(cand);
+    ranked.push({
+      word: cand,
+      dist,
+      score: (typeof scoreBoost === 'number' ? scoreBoost : 0) - dist * 20
+    });
+  };
+
+  const spRes = await fetchJsonWithTimeout(
+    `https://api.datamuse.com/words?sp=${encodeURIComponent(lower)}&max=12`,
+    4000
+  );
+  if (spRes.ok && Array.isArray(spRes.data)) {
+    spRes.data.forEach((row, index) => {
+      pushCandidate(row && row.word, 100 - index);
+    });
+  }
+
+  const sugRes = await fetchJsonWithTimeout(
+    `https://api.datamuse.com/sug?s=${encodeURIComponent(lower)}`,
+    3500
+  );
+  if (sugRes.ok && Array.isArray(sugRes.data)) {
+    sugRes.data.forEach((row, index) => {
+      pushCandidate(row && row.word, 80 - index);
+    });
+  }
+
+  ranked.sort((a, b) => (b.score - a.score) || (a.dist - b.dist) || a.word.localeCompare(b.word));
+  return ranked.map((item) => item.word);
+}
+
+const verifyWordCache = new Map(); // lower -> { ok, source, conclusive, at }
+
+async function verifyKnownEnglishWord(word) {
+  const lower = String(word || '').toLowerCase().trim();
+  if (!lower) return { ok: false, source: '', conclusive: true };
+  const cached = verifyWordCache.get(lower);
+  if (cached && (Date.now() - cached.at) < 10 * 60 * 1000) {
+    return { ok: cached.ok, source: cached.source, conclusive: cached.conclusive };
+  }
+
+  if (await existsInOfflineDictStrict(lower)) {
+    const hit = { ok: true, source: 'offline', conclusive: true, at: Date.now() };
+    verifyWordCache.set(lower, hit);
+    return hit;
+  }
+  // 在线源并行，缩短双击收藏等待
+  const [fd, dm] = await Promise.all([
+    existsInFreeDictionary(lower),
+    existsInDatamuseExact(lower)
+  ]);
+  if (fd.found) {
+    const hit = { ok: true, source: 'fd', conclusive: true, at: Date.now() };
+    verifyWordCache.set(lower, hit);
+    return hit;
+  }
+  if (dm.found) {
+    const hit = { ok: true, source: 'datamuse', conclusive: true, at: Date.now() };
+    verifyWordCache.set(lower, hit);
+    return hit;
+  }
+  // 在线源都失败（超时/断网）时不算「已证实不是单词」
+  const conclusive = !!(fd.conclusive || dm.conclusive);
+  const miss = { ok: false, source: '', conclusive, at: Date.now() };
+  verifyWordCache.set(lower, miss);
+  return miss;
+}
+
+let cachedOfflineDictKeysSorted = null;
+
+function invalidateOfflineSuggestCache() {
+  cachedOfflineDictKeysSorted = null;
+}
+
+async function getOfflineDictKeysSorted() {
+  if (cachedOfflineDictKeysSorted && cachedOfflineDictKeysSorted.length) {
+    return cachedOfflineDictKeysSorted;
+  }
+  const keys = await getOfflineDictKeys();
+  cachedOfflineDictKeysSorted = (keys || [])
+    .map((k) => String(k || '').toLowerCase())
+    .filter((k) => /^[a-z][a-z'-]*$/.test(k))
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return cachedOfflineDictKeysSorted;
+}
+
+function lowerBoundIndex(sorted, prefix) {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] < prefix) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+async function suggestFromOfflinePrefix(prefix, limit = 8) {
+  const p = String(prefix || '').toLowerCase();
+  if (p.length < 2) return [];
+  const sorted = await getOfflineDictKeysSorted();
+  if (!sorted.length) return [];
+  const start = lowerBoundIndex(sorted, p);
+  const out = [];
+  for (let i = start; i < sorted.length && out.length < limit; i++) {
+    const w = sorted[i];
+    if (!w.startsWith(p)) break;
+    out.push(w);
+  }
+  return out;
+}
+
+async function suggestFromDatamuse(prefix, limit = 8) {
+  const p = String(prefix || '').toLowerCase().trim();
+  if (p.length < 2) return [];
+  const res = await fetchJsonWithTimeout(
+    `https://api.datamuse.com/sug?s=${encodeURIComponent(p)}`,
+    3500
+  );
+  if (!res.ok || !Array.isArray(res.data)) return [];
+  const out = [];
+  const seen = new Set();
+  for (let i = 0; i < res.data.length && out.length < limit; i++) {
+    const w = normalizeVocabCandidate(res.data[i] && res.data[i].word);
+    if (!w || seen.has(w) || !w.startsWith(p)) continue;
+    seen.add(w);
+    out.push(w);
+  }
+  return out;
+}
+
+/**
+ * 查词前缀联想：Datamuse sug 为主，离线词库前缀为辅。
+ * 不做 Google/Bing Suggest：结果偏搜索词，且不稳定。
+ */
+async function suggestVocabWords(rawPrefix, limit = 8) {
+  const prefix = normalizeVocabCandidate(rawPrefix);
+  const max = Math.max(1, Math.min(Number(limit) || 8, 12));
+  if (!prefix || prefix.length < 2) {
+    return { prefix: prefix || '', suggestions: [], sources: [] };
+  }
+
+  const sources = [];
+  const seen = new Set();
+  const merged = [];
+
+  const pushAll = (list, source) => {
+    (list || []).forEach((w) => {
+      const word = normalizeVocabCandidate(w);
+      if (!word || seen.has(word)) return;
+      if (!word.startsWith(prefix)) return;
+      seen.add(word);
+      merged.push(word);
+      if (source && !sources.includes(source)) sources.push(source);
+    });
+  };
+
+  // 并行：在线联想 + 离线前缀
+  const [online, offline] = await Promise.all([
+    suggestFromDatamuse(prefix, max).catch(() => []),
+    suggestFromOfflinePrefix(prefix, max).catch(() => [])
+  ]);
+  pushAll(online, 'datamuse');
+  pushAll(offline, 'offline');
+
+  return {
+    prefix,
+    suggestions: merged.slice(0, max),
+    sources
+  };
+}
+
+/**
+ * 校验生词是否为真实英文词。拼错时仅在高把握时自动纠正。
+ * 机翻命中不算“词存在”（避免 conponent 被有道硬译后入库）。
+ */
+async function validateVocabWord(rawWord) {
+  const original = normalizeVocabCandidate(rawWord);
+  if (!original) {
+    return {
+      ok: false,
+      reason: 'invalid_shape',
+      word: '',
+      original: String(rawWord || '').trim(),
+      corrected: false,
+      suggestions: []
+    };
+  }
+
+  const exact = await verifyKnownEnglishWord(original);
+  if (exact.ok) {
+    return {
+      ok: true,
+      reason: 'exact',
+      word: original,
+      original,
+      corrected: false,
+      source: exact.source,
+      suggestions: []
+    };
+  }
+
+  const suggestions = await fetchSpellingSuggestions(original);
+  // 只核验前 2 个候选，并行以降低双击等待
+  const topCands = suggestions.slice(0, 2);
+  const verifiedList = await Promise.all(topCands.map((cand) => verifyKnownEnglishWord(cand)));
+  for (let i = 0; i < topCands.length; i++) {
+    const verified = verifiedList[i];
+    if (!verified || !verified.ok) continue;
+    return {
+      ok: true,
+      reason: 'corrected',
+      word: topCands[i],
+      original,
+      corrected: true,
+      source: verified.source,
+      suggestions: suggestions.slice(0, 5)
+    };
+  }
+
+  // 在线校验不可用时放行，避免把 lawn 这类真词误杀
+  if (!exact.conclusive) {
+    return {
+      ok: true,
+      reason: 'unverified',
+      word: original,
+      original,
+      corrected: false,
+      source: 'unverified',
+      suggestions: suggestions.slice(0, 5)
+    };
+  }
+
+  return {
+    ok: false,
+    reason: 'not_a_word',
+    word: original,
+    original,
+    corrected: false,
+    suggestions: suggestions.slice(0, 5)
+  };
 }
 
 // 有道词典API（在background中调用，避免CORS问题）
@@ -837,13 +1209,8 @@ async function queryOfflineDictionary(word) {
       return { translation, source: 'ecd' };
     }
   }
-  
-  // 4. 如果IndexedDB中找不到，尝试有道词典API
-  translation = await translateWordToChineseYoudao(word);
-  if (translation) {
-    return { translation, source: 'youdao' };
-  }
-  
+
+  // 离线通道不再回落到有道：拼错词也会被机译“成功”，污染生词本
   return null;
 }
 
@@ -1332,6 +1699,62 @@ async function getSharedLookup(word) {
   return map.get(lower) || null;
 }
 
+async function getSharedLookupStats() {
+  const map = await loadSharedLookupMap();
+  let withDict = 0;
+  let withTranslation = 0;
+  map.forEach((entry) => {
+    if (entry && entry.dict) withDict += 1;
+    if (entry && String(entry.translation || '').trim()) withTranslation += 1;
+  });
+  return { total: map.size, withDict, withTranslation };
+}
+
+async function exportSharedLookupPayload() {
+  const map = await loadSharedLookupMap();
+  const entries = [];
+  map.forEach((entry, word) => {
+    if (!entry) return;
+    entries.push({
+      word,
+      translation: entry.translation || '',
+      translationSource: entry.translationSource || '',
+      dict: entry.dict || null,
+      cachedAt: entry.cachedAt || 0
+    });
+  });
+  entries.sort((a, b) => String(a.word).localeCompare(String(b.word)));
+  return {
+    type: 'wordnest-shared-lookup',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    count: entries.length,
+    entries
+  };
+}
+
+async function importSharedLookupEntries(entries) {
+  const list = Array.isArray(entries) ? entries : [];
+  let saved = 0;
+  let skipped = 0;
+  for (let i = 0; i < list.length; i++) {
+    const item = list[i] || {};
+    const word = String(item.word || '').trim();
+    if (!word) {
+      skipped += 1;
+      continue;
+    }
+    const kept = await mergeSharedLookup(word, {
+      dict: item.dict || null,
+      translation: item.translation || '',
+      translationSource: item.translationSource || ''
+    });
+    if (kept) saved += 1;
+    else skipped += 1;
+  }
+  return { saved, skipped, total: list.length };
+}
+
 async function archiveUserLookups(userId) {
   const userKey = `user_${String(userId || 'default')}_`;
   const stored = await new Promise((resolve) => {
@@ -1434,6 +1857,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       safeSendResponse({ success: false, error: error.message });
     });
     return true; // 保持消息通道开放
+  }
+
+  if (request.action === 'validateVocabWord') {
+    validateVocabWord(request.word)
+      .then((result) => safeSendResponse({ success: true, ...(result || {}) }))
+      .catch((error) => safeSendResponse({
+        success: false,
+        ok: false,
+        reason: 'validate_failed',
+        error: (error && error.message) || 'validate_failed',
+        word: '',
+        original: String(request.word || ''),
+        corrected: false,
+        suggestions: []
+      }));
+    return true;
+  }
+
+  if (request.action === 'suggestVocabWords') {
+    suggestVocabWords(request.prefix, request.limit)
+      .then((result) => safeSendResponse({ success: true, ...(result || {}) }))
+      .catch((error) => safeSendResponse({
+        success: false,
+        error: (error && error.message) || 'suggest_failed',
+        prefix: String(request.prefix || ''),
+        suggestions: [],
+        sources: []
+      }));
+    return true;
   }
   
   if (request.action === 'importDictionary') {
@@ -1557,6 +2009,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === 'getSharedLookupStats') {
+    getSharedLookupStats()
+      .then((stats) => safeSendResponse({ success: true, stats }))
+      .catch((error) => safeSendResponse({ success: false, error: (error && error.message) || 'failed' }));
+    return true;
+  }
+
+  if (request.action === 'exportSharedLookup') {
+    exportSharedLookupPayload()
+      .then((payload) => safeSendResponse({ success: true, payload }))
+      .catch((error) => safeSendResponse({ success: false, error: (error && error.message) || 'failed' }));
+    return true;
+  }
+
+  if (request.action === 'importSharedLookup') {
+    withSharedLookupWrite(() => importSharedLookupEntries(request.entries || []))
+      .then((result) => safeSendResponse({ success: true, ...(result || {}) }))
+      .catch((error) => safeSendResponse({ success: false, error: (error && error.message) || 'failed' }));
+    return true;
+  }
+
   if (request.action === 'proxyHttpGet') {
     proxyHttpGet(request.url, request.timeoutMs)
       .then((result) => safeSendResponse(result))
@@ -1647,3 +2120,48 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     });
   }
 });
+
+// ===== 记忆曲线：工具栏图标显示「到期待复习」数量 =====
+try { importScripts('srs.js'); } catch (e) { console.error('[SRS] 加载 srs.js 失败:', e); }
+const SRS_ALARM = 'wordnest_review_badge';
+
+async function updateReviewBadge() {
+  if (!self.WordNestSRS || !chrome.action) return;
+  const base = await new Promise((r) => chrome.storage.local.get(['currentUserId'], r));
+  const userKey = `user_${base.currentUserId || 'default'}_`;
+  const rKey = self.WordNestSRS.reviewKey(userKey);
+  const res = await new Promise((r) => chrome.storage.local.get([`${userKey}savedWords`, `${userKey}wordStatus`, rKey], r));
+  const groups = self.WordNestSRS.classify(
+    res[`${userKey}savedWords`] || [],
+    new Map(res[`${userKey}wordStatus`] || []),
+    new Map(res[rKey] || []),
+    Date.now()
+  );
+  const n = groups.due.length;
+  await chrome.action.setBadgeBackgroundColor({ color: '#FF6B35' });
+  await chrome.action.setBadgeText({ text: n > 0 ? (n > 99 ? '99+' : String(n)) : '' });
+  await chrome.action.setTitle({ title: n > 0 ? `WordNest 单词窝 · ${n} 个单词待复习` : 'WordNest 单词窝' });
+}
+
+function ensureReviewAlarm() {
+  if (!chrome.alarms) return;
+  chrome.alarms.get(SRS_ALARM, (a) => {
+    if (!a) chrome.alarms.create(SRS_ALARM, { periodInMinutes: 15, delayInMinutes: 1 });
+  });
+}
+
+if (chrome.alarms) {
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm && alarm.name === SRS_ALARM) updateReviewBadge().catch(() => {});
+  });
+}
+chrome.runtime.onInstalled.addListener(() => { ensureReviewAlarm(); updateReviewBadge().catch(() => {}); });
+chrome.runtime.onStartup.addListener(() => { ensureReviewAlarm(); updateReviewBadge().catch(() => {}); });
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  if (Object.keys(changes).some((k) => k === 'currentUserId' || /_(wordReview|savedWords|wordStatus)$/.test(k))) {
+    updateReviewBadge().catch(() => {});
+  }
+});
+ensureReviewAlarm();
+updateReviewBadge().catch(() => {});
