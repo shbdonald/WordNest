@@ -4267,6 +4267,122 @@
   let currentTooltipWord = null;
   let tooltipTimeout = null;
 
+
+  // Edge 自然语音朗读：扩展无法直接调起系统「大声朗读」，改用同一套 Microsoft Natural 语音。
+  // 优先 name 含 Natural 且 lang 为 en-US，否则任意 en-*；voices 可能异步加载（voiceschanged）。
+  let wnSpeechText = null;
+  let wnSpeechUtterance = null;
+  let wnSpeechToken = 0;
+  let wnSpeechPending = false;
+  let wnVoicesReady = null;
+
+  function wnGetSpeechVoices() {
+    if (!('speechSynthesis' in window)) return Promise.resolve([]);
+    try {
+      const list = window.speechSynthesis.getVoices();
+      if (list && list.length) return Promise.resolve(Array.from(list));
+    } catch (e) {}
+    if (wnVoicesReady) return wnVoicesReady;
+    wnVoicesReady = new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        try { window.speechSynthesis.removeEventListener('voiceschanged', finish); } catch (e) {}
+        clearTimeout(tid);
+        let voices = [];
+        try { voices = Array.from(window.speechSynthesis.getVoices() || []); } catch (err) {}
+        resolve(voices);
+      };
+      try { window.speechSynthesis.addEventListener('voiceschanged', finish); } catch (e) {}
+      const tid = setTimeout(finish, 2500);
+      try {
+        const again = window.speechSynthesis.getVoices();
+        if (again && again.length) finish();
+      } catch (e) {}
+    });
+    return wnVoicesReady;
+  }
+
+  function wnPickEdgeVoice(voices) {
+    const list = Array.isArray(voices) ? voices : [];
+    const isEn = (v) => /^en([-_]|$)/i.test(v && v.lang || '');
+    const isUs = (v) => /^en[-_]US/i.test(v && v.lang || '');
+    const isNatural = (v) => /natural/i.test(v && v.name || '');
+    return list.find((v) => isNatural(v) && isUs(v))
+      || list.find((v) => isNatural(v) && isEn(v))
+      || list.find(isUs)
+      || list.find(isEn)
+      || null;
+  }
+
+  function wnStopEdgeSpeech() {
+    wnSpeechText = null;
+    wnSpeechUtterance = null;
+    wnSpeechPending = false;
+    try {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    } catch (e) {}
+  }
+
+  function wnIsEdgeSpeaking() {
+    try {
+      return !!(window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function speakWithEdgeVoice(text) {
+    const t = String(text || '').trim();
+    if (!t) return Promise.resolve(false);
+    if (!('speechSynthesis' in window)) return Promise.resolve(false);
+    if (wnSpeechText === t && (wnIsEdgeSpeaking() || wnSpeechPending)) {
+      wnSpeechToken += 1;
+      wnStopEdgeSpeech();
+      return Promise.resolve('stopped');
+    }
+    const token = ++wnSpeechToken;
+    wnSpeechText = t;
+    wnSpeechPending = true;
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    return wnGetSpeechVoices().then((voices) => {
+      if (token !== wnSpeechToken) return 'cancelled';
+      wnSpeechPending = false;
+      const utterance = new SpeechSynthesisUtterance(t);
+      utterance.lang = 'en-US';
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      const voice = wnPickEdgeVoice(voices);
+      if (voice) {
+        utterance.voice = voice;
+        if (voice.lang) utterance.lang = voice.lang;
+      }
+      utterance.onend = () => {
+        if (wnSpeechUtterance === utterance) {
+          wnSpeechText = null;
+          wnSpeechUtterance = null;
+        }
+      };
+      utterance.onerror = () => {
+        if (wnSpeechUtterance === utterance) {
+          wnSpeechText = null;
+          wnSpeechUtterance = null;
+        }
+      };
+      wnSpeechUtterance = utterance;
+      window.speechSynthesis.speak(utterance);
+      return true;
+    }).catch(() => {
+      if (token === wnSpeechToken) {
+        wnSpeechPending = false;
+        wnSpeechText = null;
+      }
+      return false;
+    });
+  }
+
   // 创建悬停提示框
   // 发音：按测速 ttsOrder，最后系统朗读
   function speakWord(word, type = 1) {
@@ -4486,6 +4602,7 @@
     tooltipHTML += `<button class="vocab-tooltip-pronounce" title="英音发音" data-word="${word}" data-type="1">🔊</button>`;
     tooltipHTML += `<button class="vocab-tooltip-pronounce" title="美音发音" data-word="${word}" data-type="2">🔊</button>`;
     tooltipHTML += `</div>`;
+    tooltipHTML += `<button type="button" class="vocab-tooltip-readaloud" title="朗读（Edge 自然语音）" data-word="${word}">朗读</button>`;
     if (isSavedWord) {
       tooltipHTML += `<button class="vocab-tooltip-note-btn" title="添加/编辑备注" data-word="${word}">✎</button>`;
       tooltipHTML += `<button class="vocab-tooltip-delete" title="删除生词" data-word="${word}">×</button>`;
@@ -4576,6 +4693,16 @@
         speakWord(wordToSpeak, type);
       });
     });
+
+    const readAloudBtn = tooltip.querySelector('.vocab-tooltip-readaloud');
+    if (readAloudBtn) {
+      readAloudBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const wordToSpeak = e.currentTarget.getAttribute('data-word') || word;
+        speakWithEdgeVoice(wordToSpeak);
+      });
+    }
     
     // 绑定删除按钮事件（仅对已收藏生词）
     const deleteBtn = tooltip.querySelector('.vocab-tooltip-delete');
@@ -5086,6 +5213,7 @@
       el.classList.contains('vocab-sentence-popup') ||
       el.classList.contains('vocab-sentence-btn') ||
       el.classList.contains('vocab-chunk-btn') ||
+      el.classList.contains('vocab-readaloud-btn') ||
       el.classList.contains('vocab-popup-full') ||
       el.classList.contains('vocab-translation-popup') ||
       el.classList.contains('vocab-word-detail-overlay') ||
@@ -5885,7 +6013,7 @@
     if (!el || !el.closest) return false;
     return !!el.closest(
       'input, textarea, select, [contenteditable="true"], [contenteditable=""], ' +
-      '.vocab-sentence-popup, .vocab-sentence-btn, .vocab-chunk-btn, .vocab-popup-full, .vocab-tooltip, .vocab-word-detail-overlay'
+      '.vocab-sentence-popup, .vocab-sentence-btn, .vocab-chunk-btn, .vocab-readaloud-btn, .vocab-popup-full, .vocab-tooltip, .vocab-word-detail-overlay'
     );
   }
 
@@ -6082,6 +6210,7 @@
     currentSentenceButton = null;
     sentenceButtonPayload = null;
     removeChunkButton();
+    removeReadAloudButton();
   }
 
   function positionSentenceButton(btn, anchorRect) {
@@ -6126,6 +6255,7 @@
     sentenceButtonPayload = { text, anchorRect };
     positionSentenceButton(btn, anchorRect);
     attachChunkButton(btn, text, anchorRect);
+    attachReadAloudButton(btn, text);
 
     btn.addEventListener('mousedown', (ev) => {
       ev.preventDefault();
@@ -6181,6 +6311,7 @@
       <div class="vocab-sentence-header">
         <span class="vocab-sentence-title">划句翻译</span>
         <span class="vocab-sentence-actions">
+          <button type="button" class="vocab-sentence-readaloud" title="朗读选中内容（Edge 自然语音）">朗读</button>
           <button type="button" class="vocab-sentence-mode" data-mode="chunk" title="分析语义块（离线）">语义块</button>
           <button type="button" class="vocab-sentence-close" title="关闭">×</button>
         </span>
@@ -6211,6 +6342,15 @@
       });
     }
 
+    const sentenceReadBtn = popup.querySelector('.vocab-sentence-readaloud');
+    if (sentenceReadBtn) {
+      sentenceReadBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        speakWithEdgeVoice(text);
+      });
+    }
+
     const resultEl = popup.querySelector('.vocab-sentence-result');
     try {
       const translated = await translateWordToChinese(text);
@@ -6230,16 +6370,17 @@
   }
 
   // ================= 语义块（Chunk）：划句后按需识别，CSS Custom Highlight 着色，不改页面 DOM =================
-  // 词库只在用户第一次点「语义块」时加载（data/chunks-core.json + 可删除的 data/chunks-acl.json）。
+  // 词库只在用户第一次点「语义块」时加载（data/chunks-core.json + 可删除的 data/chunks-acl.json + 可删除的 data/chunks-slang.json）。
   const WN_CHUNK_CATS = {
     pv: { label: '动词短语', color: '#3B82F6' },
     col: { label: '固定搭配', color: '#0D9488' },
     prep: { label: '介词/连接短语', color: '#8B5CF6' },
     idiom: { label: '习语', color: '#B45309' },
-    frame: { label: '句型框架', color: '#DB2777' }
+    frame: { label: '句型框架', color: '#DB2777' },
+    slang: { label: '俚语', color: '#4F46E5' }
   };
-  const WN_CHUNK_CAT_ORDER = ['pv', 'col', 'prep', 'idiom', 'frame'];
-  const WN_CHUNK_FILES = ['data/chunks-core.json', 'data/chunks-acl.json'];
+  const WN_CHUNK_CAT_ORDER = ['pv', 'col', 'prep', 'idiom', 'frame', 'slang'];
+  const WN_CHUNK_FILES = ['data/chunks-core.json', 'data/chunks-acl.json', 'data/chunks-slang.json'];
   const WN_CHUNK_IRREGULAR = (
     'was:be,were:be,is:be,am:be,are:be,been:be,being:be,has:have,had:have,having:have,does:do,did:do,done:do,' +
     'went:go,gone:go,goes:go,took:take,taken:take,made:make,got:get,gotten:get,came:come,gave:give,given:give,' +
@@ -6282,6 +6423,7 @@
   let wnChunkDataPromise = null;
   let wnChunkLastRange = null;
   let wnChunkButton = null;
+  let wnReadAloudButton = null;
   let wnChunkToken = 0;
 
   function wnChunkLemmas(w) {
@@ -6338,12 +6480,17 @@
     lists.forEach((list) => {
       (list || []).forEach((row) => {
         if (!Array.isArray(row) || !row[0]) return;
-        const entry = { phrase: String(row[0]).replace(/\s*~\s*/g, ' ').trim(), cat: WN_CHUNK_CATS[row[1]] ? row[1] : 'col', zh: row[2] || '' };
+        const isVerb = row[3] === 'v' || row[4] === 'v';
+        const note = (row[3] && row[3] !== 'v') ? String(row[3]) : ((row[4] && row[4] !== 'v') ? String(row[4]) : '');
+        const entry = { phrase: String(row[0]).replace(/\s*~\s*/g, ' ').trim(), cat: WN_CHUNK_CATS[row[1]] ? row[1] : 'col', zh: row[2] || '', note };
         const pattern = wnChunkPattern(row[0]);
-        if (pattern.filter((t) => t[0] !== '~' && t !== '*' && t !== '%').length < 2) return;
+        const realParts = pattern.filter((t) => t[0] !== '~' && t !== '*' && t !== '%').length;
+        // 普通语块至少两个实词；俚语允许 gonna / y'all 这类无歧义的单词或缩约形式
+        if (realParts < 1) return;
+        if (realParts < 2 && entry.cat !== 'slang') return;
         wnChunkInsert(root, pattern, entry);
         // 动词短语/搭配：允许动词后插入宾语（take it into account / turn the light off）
-        if (row[3] === 'v' && pattern.length >= 2 && pattern[1] !== '~' && pattern[1] !== '*') {
+        if (isVerb && pattern.length >= 2 && pattern[1] !== '~' && pattern[1] !== '*') {
           wnChunkInsert(root, [pattern[0], '%'].concat(pattern.slice(1)), entry);
         }
         count++;
@@ -6458,7 +6605,7 @@
     const n = tokens.length;
     const canUse = (i, start) => i < n && (i === start || !tokens[i].b);
     const walk = (node, i, start, used, exact) => {
-      if (node.e && used.length >= 2) found.push({ entry: node.e, start, end: i - 1, used: used.slice(), exact });
+      if (node.e && (used.length >= 2 || (used.length >= 1 && node.e.cat === 'slang'))) found.push({ entry: node.e, start, end: i - 1, used: used.slice(), exact });
       if (i > n) return;
       node.c.forEach((child, key) => {
         if (key === '~') {
@@ -6741,6 +6888,55 @@
     });
   }
 
+  function removeReadAloudButton() {
+    if (wnReadAloudButton && wnReadAloudButton.parentNode) {
+      wnReadAloudButton.parentNode.removeChild(wnReadAloudButton);
+    }
+    wnReadAloudButton = null;
+  }
+
+  // 浮动按钮模式：「翻译」右边加「朗读」（翻译 / 语义块的位置与行为不变）
+  function attachReadAloudButton(translateBtn, text) {
+    removeReadAloudButton();
+    if (!translateBtn || !translateBtn.isConnected) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'vocab-readaloud-btn';
+    btn.textContent = '朗读';
+    btn.title = '朗读选中内容（Edge 自然语音）';
+    document.documentElement.appendChild(btn);
+    wnReadAloudButton = btn;
+    const bw = btn.offsetWidth || 56;
+    const tw = translateBtn.offsetWidth || 50;
+    const tLeft = translateBtn.offsetLeft;
+    const margin = 8;
+    const gap = 6;
+    let left = tLeft + tw + gap;
+    if (left + bw > window.innerWidth - margin) {
+      const chunk = wnChunkButton;
+      const chunkOnLeft = chunk && chunk.isConnected && chunk.offsetLeft + (chunk.offsetWidth || 0) <= tLeft + 1;
+      if (chunkOnLeft) left = chunk.offsetLeft - bw - gap;
+      else left = tLeft - bw - gap;
+      if (left < margin) {
+        const rightEdge = (chunk && chunk.isConnected && chunk.offsetLeft >= tLeft)
+          ? chunk.offsetLeft + (chunk.offsetWidth || 0)
+          : tLeft + tw;
+        left = rightEdge + gap;
+      }
+    }
+    btn.style.left = `${Math.round(left)}px`;
+    btn.style.top = translateBtn.style.top;
+    btn.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+    });
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      speakWithEdgeVoice(text);
+    });
+  }
+
   async function showChunkPopup(rawText, anchorRect) {
     const text = String(rawText || '').replace(/\s+/g, ' ').trim().slice(0, 500);
     if (!text) return;
@@ -6829,7 +7025,9 @@
           `<span class="vocab-chunk-text">${wnEscapeChunkHtml(it.surface)}</span>` +
           `<span class="vocab-chunk-cat">${cat.label}</span></div>` +
           (showBase ? `<div class="vocab-chunk-base">原型：${wnEscapeChunkHtml(it.entry.phrase)}</div>` : '') +
-          `<div class="vocab-chunk-zh">${wnEscapeChunkHtml(it.entry.zh || '…')}</div></div>`;
+          `<div class="vocab-chunk-zh">${wnEscapeChunkHtml(it.entry.zh || '…')}</div>` +
+          (it.entry.note ? `<div class="vocab-chunk-note">${wnEscapeChunkHtml(it.entry.note)}</div>` : '') +
+          `</div>`;
       }).join('');
     }
     const cats = WN_CHUNK_CAT_ORDER.filter((c) => items.some((it) => it.entry.cat === c));
@@ -6881,7 +7079,7 @@
     if (e.button !== 0) return;
     const gestureMoved = wnSelectGesture.moved;
     wnSelectGesture.down = false;
-    if (e.target && e.target.closest && e.target.closest('.vocab-sentence-btn, .vocab-chunk-btn')) return;
+    if (e.target && e.target.closest && e.target.closest('.vocab-sentence-btn, .vocab-chunk-btn, .vocab-readaloud-btn')) return;
 
     const selectedText = getSelectedSentenceText(e);
     if (!selectedText) return;
@@ -6926,7 +7124,7 @@
   document.addEventListener('mousedown', (e) => {
     const target = e.target;
     const inPopup = target && target.closest && target.closest('.vocab-sentence-popup');
-    const inButton = target && target.closest && target.closest('.vocab-sentence-btn, .vocab-chunk-btn');
+    const inButton = target && target.closest && target.closest('.vocab-sentence-btn, .vocab-chunk-btn, .vocab-readaloud-btn');
     if (currentSentencePopup && !inPopup) removeSentenceTranslatePopup();
     if (currentSentenceButton && !inButton) removeSentenceTranslateButton();
   }, true);

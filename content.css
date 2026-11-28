@@ -441,6 +441,7 @@ html[data-wn-mark="highlight"] .vocab-word-marker:hover {
 .vocab-tooltip-pronounce,
 .vocab-tooltip-note-btn,
 .vocab-tooltip-delete,
+.vocab-tooltip-readaloud,
 .vocab-sentence-close {
   border: none;
   background: rgba(255, 255, 255, 0.2);
@@ -464,13 +465,15 @@ html[data-wn-mark="highlight"] .vocab-word-marker:hover {
 .vocab-tooltip-pronounce:hover,
 .vocab-tooltip-note-btn:hover,
 .vocab-tooltip-delete:hover,
+.vocab-tooltip-readaloud:hover,
 .vocab-sentence-close:hover {
   background: rgba(255, 255, 255, 0.35);
 }
 
 .vocab-tooltip-pronounce:active,
 .vocab-tooltip-note-btn:active,
-.vocab-tooltip-delete:active {
+.vocab-tooltip-delete:active,
+.vocab-tooltip-readaloud:active {
   transform: scale(0.95);
 }
 
@@ -851,6 +854,27 @@ html[data-wn-mark="highlight"] .vocab-word-marker:hover {
   filter: brightness(1.06);
 }
 
+.vocab-readaloud-btn {
+  position: fixed;
+  z-index: 2147483646;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: #7C3AED;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35);
+  animation: vocabFloatIn 0.15s ease-out;
+}
+
+.vocab-readaloud-btn:hover {
+  filter: brightness(1.06);
+}
+
 .vocab-sentence-actions {
   display: flex;
   align-items: center;
@@ -858,7 +882,8 @@ html[data-wn-mark="highlight"] .vocab-word-marker:hover {
   flex-shrink: 0;
 }
 
-.vocab-sentence-mode {
+.vocab-sentence-mode,
+.vocab-sentence-readaloud {
   border: none;
   background: rgba(255, 255, 255, 0.2);
   color: #fff;
@@ -869,7 +894,8 @@ html[data-wn-mark="highlight"] .vocab-word-marker:hover {
   line-height: 1.4;
 }
 
-.vocab-sentence-mode:hover {
+.vocab-sentence-mode:hover,
+.vocab-sentence-readaloud:hover {
   background: rgba(255, 255, 255, 0.35);
 }
 
@@ -928,6 +954,12 @@ html[data-wn-mark="highlight"] .vocab-word-marker:hover {
 .vocab-chunk-zh {
   margin: 2px 0 0 15px;
   color: var(--wn-ink, #333);
+}
+
+.vocab-chunk-note {
+  margin: 2px 0 0 15px;
+  font-size: 11px;
+  color: var(--wn-muted, #888);
 }
 
 .vocab-chunk-empty {

@@ -41,7 +41,8 @@
         "api-log.html",
         "api-log.js",
         "data/chunks-core.json",
-        "data/chunks-acl.json"
+        "data/chunks-acl.json",
+        "data/chunks-slang.json"
       ],
       "matches": ["<all_urls>"]
     }

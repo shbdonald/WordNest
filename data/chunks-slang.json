@@ -1,0 +1,2387 @@
+{
+  "v": 1,
+  "license": "WordNest curated slang/informal expressions (own work). English headwords were hand-selected; Chinese glosses and usage notes were written for WordNest. Not scraped from Urban Dictionary. See SOURCES.md.",
+  "cats": {
+    "slang": "俚语"
+  },
+  "e": [
+    [
+      "gonna",
+      "slang",
+      "将要，打算（going to 的口语省音）",
+      "口语"
+    ],
+    [
+      "wanna",
+      "slang",
+      "想要（want to 的口语省音）",
+      "口语"
+    ],
+    [
+      "gotta",
+      "slang",
+      "必须；得（got to / have got to 的口语省音）",
+      "口语"
+    ],
+    [
+      "hafta",
+      "slang",
+      "必须，得（have to 的口语省音）",
+      "口语"
+    ],
+    [
+      "oughta",
+      "slang",
+      "应该（ought to 的口语省音）",
+      "口语"
+    ],
+    [
+      "shoulda",
+      "slang",
+      "本该（should have 的口语省音）",
+      "口语"
+    ],
+    [
+      "coulda",
+      "slang",
+      "本可以（could have 的口语省音）",
+      "口语"
+    ],
+    [
+      "woulda",
+      "slang",
+      "本来会（would have 的口语省音）",
+      "口语"
+    ],
+    [
+      "dunno",
+      "slang",
+      "不知道（don't know 的口语省音）",
+      "口语"
+    ],
+    [
+      "gimme",
+      "slang",
+      "给我（give me 的口语省音）",
+      "口语"
+    ],
+    [
+      "lemme",
+      "slang",
+      "让我（let me 的口语省音）",
+      "口语"
+    ],
+    [
+      "outta",
+      "slang",
+      "从……出来；没有（out of 的口语省音）",
+      "口语"
+    ],
+    [
+      "kinda",
+      "slang",
+      "有点儿（kind of 的口语省音）",
+      "口语"
+    ],
+    [
+      "sorta",
+      "slang",
+      "有点儿（sort of 的口语省音）",
+      "口语"
+    ],
+    [
+      "lotta",
+      "slang",
+      "很多（lot of 的口语省音）",
+      "口语"
+    ],
+    [
+      "cuppa",
+      "slang",
+      "一杯茶（cup of 的口语省音）",
+      "口语，英式"
+    ],
+    [
+      "imma",
+      "slang",
+      "我要（I'm going to 的口语省音）",
+      "口语，美式"
+    ],
+    [
+      "i'ma",
+      "slang",
+      "我要（I'm going to 的口语省音）",
+      "口语，美式"
+    ],
+    [
+      "y'all",
+      "slang",
+      "你们（you all 的合音）",
+      "口语，美式"
+    ],
+    [
+      "ain't",
+      "slang",
+      "不是；没有（am/is/are/has/have not 的口语形式）",
+      "口语"
+    ],
+    [
+      "innit",
+      "slang",
+      "是不是（isn't it 的口语合音）",
+      "口语，英式"
+    ],
+    [
+      "cuz",
+      "slang",
+      "因为（because 的口语拼法）",
+      "口语"
+    ],
+    [
+      "gotcha",
+      "slang",
+      "懂了；抓到你了（got you 的合音）",
+      "口语"
+    ],
+    [
+      "whatcha",
+      "slang",
+      "你在……；什么（what are you / what do you 的省音）",
+      "口语"
+    ],
+    [
+      "finna",
+      "slang",
+      "准备要（fixing to 的口语）",
+      "口语，美式"
+    ],
+    [
+      "tryna",
+      "slang",
+      "想要；试图（trying to 的省音）",
+      "口语"
+    ],
+    [
+      "c'mon",
+      "slang",
+      "拜托；来吧（come on 的省音）",
+      "口语"
+    ],
+    [
+      "howdy",
+      "slang",
+      "你好（很随意的招呼）",
+      "口语，美式"
+    ],
+    [
+      "yup",
+      "slang",
+      "对，是的",
+      "口语"
+    ],
+    [
+      "nope",
+      "slang",
+      "不，不是",
+      "口语"
+    ],
+    [
+      "nah",
+      "slang",
+      "不（很随意）",
+      "口语"
+    ],
+    [
+      "welp",
+      "slang",
+      "唉，好吧（带点无奈）",
+      "口语，网络用语"
+    ],
+    [
+      "yikes",
+      "slang",
+      "哇，糟糕",
+      "口语"
+    ],
+    [
+      "whoa",
+      "slang",
+      "哇；等等",
+      "口语"
+    ],
+    [
+      "oops",
+      "slang",
+      "哎呀",
+      "口语"
+    ],
+    [
+      "meh",
+      "slang",
+      "一般般，无所谓",
+      "口语"
+    ],
+    [
+      "duh",
+      "slang",
+      "这不是明摆着吗",
+      "口语"
+    ],
+    [
+      "sheesh",
+      "slang",
+      "天哪；受不了",
+      "口语"
+    ],
+    [
+      "bruh",
+      "slang",
+      "兄弟；无语（表示无奈）",
+      "口语，美式"
+    ],
+    [
+      "bestie",
+      "slang",
+      "最好的朋友，闺蜜/死党",
+      "口语"
+    ],
+    [
+      "kiddo",
+      "slang",
+      "小家伙",
+      "口语，美式"
+    ],
+    [
+      "hubby",
+      "slang",
+      "老公（亲昵说法）",
+      "口语"
+    ],
+    [
+      "wifey",
+      "slang",
+      "老婆（亲昵说法）",
+      "口语"
+    ],
+    [
+      "bae",
+      "slang",
+      "宝，对象",
+      "口语，网络用语"
+    ],
+    [
+      "cheapskate",
+      "slang",
+      "小气鬼",
+      "口语"
+    ],
+    [
+      "freebie",
+      "slang",
+      "免费赠品",
+      "口语"
+    ],
+    [
+      "hangry",
+      "slang",
+      "饿到发脾气（hungry + angry）",
+      "口语"
+    ],
+    [
+      "chillax",
+      "slang",
+      "放轻松（chill + relax）",
+      "口语"
+    ],
+    [
+      "staycation",
+      "slang",
+      "不出远门的居家度假",
+      "口语"
+    ],
+    [
+      "bromance",
+      "slang",
+      "兄弟情",
+      "口语"
+    ],
+    [
+      "adulting",
+      "slang",
+      "像大人一样处理生活琐事",
+      "口语，网络用语"
+    ],
+    [
+      "situationship",
+      "slang",
+      "说不清的暧昧关系",
+      "网络用语"
+    ],
+    [
+      "moreish",
+      "slang",
+      "让人停不下嘴的",
+      "口语，英式"
+    ],
+    [
+      "dammit",
+      "slang",
+      "该死",
+      "口语，语气较粗"
+    ],
+    [
+      "ditto",
+      "slang",
+      "同上，我也是",
+      "口语"
+    ],
+    [
+      "lowkey",
+      "slang",
+      "其实；偷偷地；有点儿（低调地承认）",
+      "网络用语"
+    ],
+    [
+      "highkey",
+      "slang",
+      "很明显地；相当地",
+      "网络用语"
+    ],
+    [
+      "deadass",
+      "slang",
+      "认真的；真的",
+      "口语，美式"
+    ],
+    [
+      "periodt",
+      "slang",
+      "就是这样，没有商量余地",
+      "网络用语"
+    ],
+    [
+      "rizz",
+      "slang",
+      "魅力，撩人的本事",
+      "网络用语，偏年轻"
+    ],
+    [
+      "delulu",
+      "slang",
+      "想太多；自我幻想（delusional 的缩略）",
+      "网络用语，偏年轻"
+    ],
+    [
+      "yeet",
+      "slang",
+      "猛地扔出；大叫着做某事",
+      "网络用语"
+    ],
+    [
+      "simp",
+      "slang",
+      "无底线地讨好喜欢的人",
+      "网络用语"
+    ],
+    [
+      "unalive",
+      "slang",
+      "死去（网络上的委婉说法）",
+      "网络用语"
+    ],
+    [
+      "doomscrolling",
+      "slang",
+      "停不下来地刷负面新闻",
+      "网络用语"
+    ],
+    [
+      "humblebrag",
+      "slang",
+      "装作谦虚地炫耀",
+      "口语，网络用语"
+    ],
+    [
+      "clapback",
+      "slang",
+      "犀利回击",
+      "网络用语"
+    ],
+    [
+      "facepalm",
+      "slang",
+      "无语扶额",
+      "网络用语"
+    ],
+    [
+      "shoutout",
+      "slang",
+      "点名表扬，公开感谢",
+      "口语，网络用语"
+    ],
+    [
+      "lol",
+      "slang",
+      "笑死（laughing out loud）",
+      "网络用语，短信缩写"
+    ],
+    [
+      "lmao",
+      "slang",
+      "笑死了（laughing my ass off）",
+      "网络用语，语气较粗"
+    ],
+    [
+      "rofl",
+      "slang",
+      "笑翻了（rolling on the floor laughing）",
+      "网络用语"
+    ],
+    [
+      "omg",
+      "slang",
+      "我的天（oh my god）",
+      "口语，短信缩写"
+    ],
+    [
+      "wtf",
+      "slang",
+      "搞什么（what the fuck）",
+      "口语，语气较粗"
+    ],
+    [
+      "smh",
+      "slang",
+      "无语，摇头（shaking my head）",
+      "网络用语，短信缩写"
+    ],
+    [
+      "tbh",
+      "slang",
+      "说实话（to be honest）",
+      "网络用语，短信缩写"
+    ],
+    [
+      "ngl",
+      "slang",
+      "不瞒你说（not gonna lie）",
+      "网络用语，短信缩写"
+    ],
+    [
+      "idk",
+      "slang",
+      "我不知道（I don't know）",
+      "口语，短信缩写"
+    ],
+    [
+      "idc",
+      "slang",
+      "我不在乎（I don't care）",
+      "口语，短信缩写"
+    ],
+    [
+      "imo",
+      "slang",
+      "依我看（in my opinion）",
+      "网络用语，短信缩写"
+    ],
+    [
+      "imho",
+      "slang",
+      "依我拙见（in my humble opinion）",
+      "网络用语，短信缩写"
+    ],
+    [
+      "ikr",
+      "slang",
+      "可不是吗（I know, right）",
+      "网络用语，短信缩写"
+    ],
+    [
+      "nvm",
+      "slang",
+      "没事了；算了（never mind）",
+      "网络用语，短信缩写"
+    ],
+    [
+      "ofc",
+      "slang",
+      "当然（of course）",
+      "网络用语，短信缩写"
+    ],
+    [
+      "wbu",
+      "slang",
+      "你呢（what about you）",
+      "短信缩写"
+    ],
+    [
+      "hmu",
+      "slang",
+      "联系我（hit me up）",
+      "口语，短信缩写"
+    ],
+    [
+      "ttyl",
+      "slang",
+      "回头再聊（talk to you later）",
+      "短信缩写"
+    ],
+    [
+      "brb",
+      "slang",
+      "马上回来（be right back）",
+      "短信缩写"
+    ],
+    [
+      "gtg",
+      "slang",
+      "我得走了（got to go）",
+      "短信缩写"
+    ],
+    [
+      "afk",
+      "slang",
+      "暂时离开（away from keyboard）",
+      "网络用语"
+    ],
+    [
+      "irl",
+      "slang",
+      "在现实生活中（in real life）",
+      "网络用语"
+    ],
+    [
+      "idgaf",
+      "slang",
+      "我根本不在乎",
+      "短信缩写，语气很粗"
+    ],
+    [
+      "stfu",
+      "slang",
+      "闭嘴",
+      "短信缩写，语气很粗"
+    ],
+    [
+      "lmk",
+      "slang",
+      "告诉我一声（let me know）",
+      "短信缩写"
+    ],
+    [
+      "btw",
+      "slang",
+      "顺便说一下（by the way）",
+      "口语，短信缩写"
+    ],
+    [
+      "icymi",
+      "slang",
+      "怕你没看到（in case you missed it）",
+      "网络用语"
+    ],
+    [
+      "tbf",
+      "slang",
+      "说句公道话（to be fair）",
+      "网络用语，短信缩写"
+    ],
+    [
+      "istg",
+      "slang",
+      "我发誓（I swear to god）",
+      "口语，短信缩写"
+    ],
+    [
+      "iykyk",
+      "slang",
+      "懂的都懂（if you know you know）",
+      "网络用语"
+    ],
+    [
+      "tmi",
+      "slang",
+      "说得太多了（too much information）",
+      "口语，短信缩写"
+    ],
+    [
+      "fomo",
+      "slang",
+      "错失恐惧（fear of missing out）",
+      "网络用语"
+    ],
+    [
+      "yolo",
+      "slang",
+      "及时行乐（you only live once）",
+      "网络用语"
+    ],
+    [
+      "bff",
+      "slang",
+      "最好的朋友（best friends forever）",
+      "口语，短信缩写"
+    ],
+    [
+      "omw",
+      "slang",
+      "我在路上（on my way）",
+      "短信缩写"
+    ],
+    [
+      "wyd",
+      "slang",
+      "你在干嘛（what you doing）",
+      "短信缩写"
+    ],
+    [
+      "tldr",
+      "slang",
+      "太长不看；简单说",
+      "网络用语"
+    ],
+    [
+      "eli5",
+      "slang",
+      "用最简单的话解释",
+      "网络用语"
+    ],
+    [
+      "nsfw",
+      "slang",
+      "工作场合不宜打开（少儿不宜）",
+      "网络用语"
+    ],
+    [
+      "ftw",
+      "slang",
+      "强推这个；为了赢（for the win）",
+      "网络用语"
+    ],
+    [
+      "gg",
+      "slang",
+      "打得不错，完赛（good game）",
+      "网络用语"
+    ],
+    [
+      "no cap",
+      "slang",
+      "不吹，说真的",
+      "网络用语"
+    ],
+    [
+      "no lie",
+      "slang",
+      "不骗你，说真的",
+      "口语"
+    ],
+    [
+      "on god",
+      "slang",
+      "我对天发誓",
+      "口语，美式"
+    ],
+    [
+      "spill the tea",
+      "slang",
+      "爆料；说八卦",
+      "网络用语"
+    ],
+    [
+      "that's the tea",
+      "slang",
+      "事实就是这样；这就是八卦",
+      "网络用语"
+    ],
+    [
+      "throw shade",
+      "slang",
+      "阴阳怪气地贬低",
+      "网络用语"
+    ],
+    [
+      "no shade",
+      "slang",
+      "没有贬低的意思",
+      "网络用语"
+    ],
+    [
+      "catch feelings",
+      "slang",
+      "动了真心，产生感情",
+      "网络用语"
+    ],
+    [
+      "vibe check",
+      "slang",
+      "看看气氛对不对；探探态度",
+      "网络用语"
+    ],
+    [
+      "good vibes",
+      "slang",
+      "好心情；正能量",
+      "口语"
+    ],
+    [
+      "understood the assignment",
+      "slang",
+      "太懂了，任务完成得很漂亮",
+      "网络用语"
+    ],
+    [
+      "touch grass",
+      "slang",
+      "少上网，去外面走走",
+      "网络用语"
+    ],
+    [
+      "let him cook",
+      "slang",
+      "让他继续发挥，别打断",
+      "网络用语"
+    ],
+    [
+      "let them cook",
+      "slang",
+      "让他们继续发挥，别打断",
+      "网络用语"
+    ],
+    [
+      "we're cooked",
+      "slang",
+      "我们完了，没救了",
+      "网络用语"
+    ],
+    [
+      "i'm cooked",
+      "slang",
+      "我完了",
+      "网络用语"
+    ],
+    [
+      "take the l",
+      "slang",
+      "认栽，接受失败",
+      "网络用语"
+    ],
+    [
+      "hit me up",
+      "slang",
+      "联系我，有空找我",
+      "口语"
+    ],
+    [
+      "slide into the dms",
+      "slang",
+      "私信搭讪",
+      "网络用语"
+    ],
+    [
+      "down bad",
+      "slang",
+      "馋得不行；陷得很深",
+      "网络用语"
+    ],
+    [
+      "i'm down",
+      "slang",
+      "我愿意，算我一个",
+      "口语"
+    ],
+    [
+      "count me in",
+      "slang",
+      "算我一个",
+      "口语"
+    ],
+    [
+      "glow up",
+      "slang",
+      "外表或气质明显变好",
+      "网络用语"
+    ],
+    [
+      "it's giving",
+      "slang",
+      "有一种……的感觉",
+      "网络用语，偏年轻"
+    ],
+    [
+      "living rent free",
+      "slang",
+      "在别人脑子里住下了（总被想到）",
+      "网络用语"
+    ],
+    [
+      "big mood",
+      "slang",
+      "太有同感了",
+      "网络用语"
+    ],
+    [
+      "it hits different",
+      "slang",
+      "感觉就是不一样",
+      "网络用语"
+    ],
+    [
+      "say less",
+      "slang",
+      "懂了，不用说了",
+      "口语，美式"
+    ],
+    [
+      "that's cap",
+      "slang",
+      "那是吹牛，假的",
+      "网络用语"
+    ],
+    [
+      "talking stage",
+      "slang",
+      "还在暧昧、刚开始聊的阶段",
+      "网络用语"
+    ],
+    [
+      "the ick",
+      "slang",
+      "突然涌上的嫌弃感",
+      "网络用语"
+    ],
+    [
+      "friends with benefits",
+      "slang",
+      "有肉体没恋爱关系的那种",
+      "口语"
+    ],
+    [
+      "netflix and chill",
+      "slang",
+      "表面一起看电影，常暗示约炮",
+      "网络用语"
+    ],
+    [
+      "brain rot",
+      "slang",
+      "脑子被无聊内容刷坏了",
+      "网络用语"
+    ],
+    [
+      "don't @ me",
+      "slang",
+      "别来喷我，这只是我的看法",
+      "网络用语"
+    ],
+    [
+      "hot take",
+      "slang",
+      "很冲的个人看法",
+      "网络用语"
+    ],
+    [
+      "plot twist",
+      "slang",
+      "剧情反转；没想到吧",
+      "口语"
+    ],
+    [
+      "spoiler alert",
+      "slang",
+      "剧透警告",
+      "口语，网络用语"
+    ],
+    [
+      "if you know you know",
+      "slang",
+      "懂的都懂",
+      "网络用语"
+    ],
+    [
+      "i feel seen",
+      "slang",
+      "太被说中了，有人懂我",
+      "网络用语"
+    ],
+    [
+      "living my best life",
+      "slang",
+      "过着最爽的自己",
+      "网络用语"
+    ],
+    [
+      "you do you",
+      "slang",
+      "你做你自己就好",
+      "口语"
+    ],
+    [
+      "haters gonna hate",
+      "slang",
+      "黑子总会黑",
+      "网络用语"
+    ],
+    [
+      "chronically online",
+      "slang",
+      "一天到晚挂在网上",
+      "网络用语"
+    ],
+    [
+      "the feels",
+      "slang",
+      "那种强烈的感动或情绪",
+      "网络用语"
+    ],
+    [
+      "right in the feels",
+      "slang",
+      "正好戳中心情，看哭了",
+      "网络用语"
+    ],
+    [
+      "in my feelings",
+      "slang",
+      "情绪上来了，想多了",
+      "口语，网络用语"
+    ],
+    [
+      "it's so over",
+      "slang",
+      "彻底没了，没戏了",
+      "网络用语"
+    ],
+    [
+      "we're so back",
+      "slang",
+      "我们又行了，归来了",
+      "网络用语"
+    ],
+    [
+      "went viral",
+      "slang",
+      "在网上爆火",
+      "口语，网络用语"
+    ],
+    [
+      "go viral",
+      "slang",
+      "在网上爆火",
+      "网络用语"
+    ],
+    [
+      "got cancelled",
+      "slang",
+      "被舆论封杀了",
+      "网络用语"
+    ],
+    [
+      "thirst trap",
+      "slang",
+      "故意发的撩人照片",
+      "网络用语"
+    ],
+    [
+      "got dragged",
+      "slang",
+      "被公开数落、群嘲",
+      "网络用语"
+    ],
+    [
+      "sick burn",
+      "slang",
+      "这嘲讽真狠",
+      "口语，网络用语"
+    ],
+    [
+      "mic drop",
+      "slang",
+      "说完甩麦，无需再言",
+      "口语，网络用语"
+    ],
+    [
+      "drop the mic",
+      "slang",
+      "说完甩麦",
+      "口语"
+    ],
+    [
+      "it slaps",
+      "slang",
+      "这太好听/好吃了",
+      "网络用语"
+    ],
+    [
+      "goes hard",
+      "slang",
+      "很猛，很顶",
+      "网络用语"
+    ],
+    [
+      "full send",
+      "slang",
+      "不顾一切直接冲",
+      "口语，美式"
+    ],
+    [
+      "let's get this bread",
+      "slang",
+      "去赚钱，搞起来",
+      "网络用语"
+    ],
+    [
+      "secure the bag",
+      "slang",
+      "把钱或机会拿下",
+      "网络用语"
+    ],
+    [
+      "i can't with this",
+      "slang",
+      "我受不了这个了",
+      "网络用语"
+    ],
+    [
+      "so over it",
+      "slang",
+      "彻底不爱了，不想再提",
+      "口语"
+    ],
+    [
+      "let's be real",
+      "slang",
+      "说实话吧",
+      "口语"
+    ],
+    [
+      "quiet quitting",
+      "slang",
+      "只做分内事的摸鱼式上班",
+      "网络用语"
+    ],
+    [
+      "side hustle",
+      "slang",
+      "副业，兼职搞钱",
+      "口语"
+    ],
+    [
+      "what's up",
+      "slang",
+      "最近怎么样；怎么了",
+      "口语"
+    ],
+    [
+      "whats up",
+      "slang",
+      "最近怎么样；怎么了",
+      "口语"
+    ],
+    [
+      "what's good",
+      "slang",
+      "最近怎么样；有什么事",
+      "口语，美式"
+    ],
+    [
+      "how's it hanging",
+      "slang",
+      "最近怎么样（很随意）",
+      "口语，美式"
+    ],
+    [
+      "what are you up to",
+      "slang",
+      "在忙什么",
+      "口语"
+    ],
+    [
+      "catch you later",
+      "slang",
+      "回头再聊",
+      "口语"
+    ],
+    [
+      "no worries",
+      "slang",
+      "没事，别担心",
+      "口语"
+    ],
+    [
+      "you bet",
+      "slang",
+      "当然，保准",
+      "口语，美式"
+    ],
+    [
+      "let's roll",
+      "slang",
+      "走吧，开始行动",
+      "口语"
+    ],
+    [
+      "let's bounce",
+      "slang",
+      "我们撤吧",
+      "口语，美式"
+    ],
+    [
+      "gotta go",
+      "slang",
+      "我得走了",
+      "口语"
+    ],
+    [
+      "i gotta run",
+      "slang",
+      "我得赶紧走了",
+      "口语"
+    ],
+    [
+      "wait a sec",
+      "slang",
+      "等一下",
+      "口语"
+    ],
+    [
+      "come on over",
+      "slang",
+      "过来玩啊",
+      "口语"
+    ],
+    [
+      "hang out with",
+      "slang",
+      "和……一起闲逛、相处",
+      "口语"
+    ],
+    [
+      "hang out together",
+      "slang",
+      "一起玩，待在一块",
+      "口语"
+    ],
+    [
+      "just hanging out",
+      "slang",
+      "就是待着、闲聊",
+      "口语"
+    ],
+    [
+      "just chilling",
+      "slang",
+      "就是闲着、放松",
+      "口语"
+    ],
+    [
+      "chill out",
+      "slang",
+      "放松；冷静点",
+      "口语"
+    ],
+    [
+      "chill with",
+      "slang",
+      "和……一起放松、相处",
+      "口语"
+    ],
+    [
+      "freak out",
+      "slang",
+      "慌了；吓坏了；发飙",
+      "v",
+      "口语"
+    ],
+    [
+      "zone out",
+      "slang",
+      "走神，发呆",
+      "口语"
+    ],
+    [
+      "space out",
+      "slang",
+      "走神，愣神",
+      "口语"
+    ],
+    [
+      "stress out",
+      "slang",
+      "焦虑紧张；让人很有压力",
+      "v",
+      "口语"
+    ],
+    [
+      "wig out",
+      "slang",
+      "慌了，崩溃了",
+      "口语，美式"
+    ],
+    [
+      "chicken out",
+      "slang",
+      "临阵退缩",
+      "口语"
+    ],
+    [
+      "flake out",
+      "slang",
+      "放鸽子；睡死了",
+      "口语"
+    ],
+    [
+      "veg out",
+      "slang",
+      "瘫着放松，什么也不干",
+      "口语"
+    ],
+    [
+      "pig out",
+      "slang",
+      "大吃特吃",
+      "口语"
+    ],
+    [
+      "fool around",
+      "slang",
+      "胡闹；随便玩玩",
+      "口语"
+    ],
+    [
+      "no show",
+      "slang",
+      "爽约，没出现",
+      "口语"
+    ],
+    [
+      "are you kidding me",
+      "slang",
+      "你逗我呢",
+      "口语"
+    ],
+    [
+      "no kidding",
+      "slang",
+      "不是开玩笑；可不是嘛",
+      "口语"
+    ],
+    [
+      "hell yeah",
+      "slang",
+      "那必须的，当然",
+      "口语，语气较粗"
+    ],
+    [
+      "hell no",
+      "slang",
+      "绝对不行",
+      "口语，语气较粗"
+    ],
+    [
+      "good on you",
+      "slang",
+      "真棒，做得好",
+      "口语，英式/澳式"
+    ],
+    [
+      "my bad",
+      "slang",
+      "我的错，抱歉",
+      "口语"
+    ],
+    [
+      "up to you",
+      "slang",
+      "你决定",
+      "口语"
+    ],
+    [
+      "i feel you",
+      "slang",
+      "我懂你，有同感",
+      "口语"
+    ],
+    [
+      "tell me about it",
+      "slang",
+      "可不是吗，我太懂了",
+      "口语"
+    ],
+    [
+      "true that",
+      "slang",
+      "确实如此",
+      "口语，美式"
+    ],
+    [
+      "you wish",
+      "slang",
+      "想得美",
+      "口语"
+    ],
+    [
+      "yeah right",
+      "slang",
+      "得了吧，才不是",
+      "口语"
+    ],
+    [
+      "who cares",
+      "slang",
+      "谁在乎啊",
+      "口语"
+    ],
+    [
+      "mind your own business",
+      "slang",
+      "别多管闲事",
+      "口语"
+    ],
+    [
+      "no big deal",
+      "slang",
+      "没什么大不了",
+      "口语"
+    ],
+    [
+      "get a grip",
+      "slang",
+      "振作点，控制一下自己",
+      "口语"
+    ],
+    [
+      "get over it",
+      "slang",
+      "想开点，别再纠结了",
+      "口语"
+    ],
+    [
+      "check this out",
+      "slang",
+      "你看这个",
+      "口语"
+    ],
+    [
+      "here's the thing",
+      "slang",
+      "问题是这样的",
+      "口语"
+    ],
+    [
+      "long story short",
+      "slang",
+      "长话短说",
+      "口语"
+    ],
+    [
+      "that's what she said",
+      "slang",
+      "这可是她说的（黄段子接话）",
+      "口语，美式"
+    ],
+    [
+      "say no more",
+      "slang",
+      "我懂了，不用再说",
+      "口语"
+    ],
+    [
+      "i was like",
+      "slang",
+      "当时我就（转述自己的反应）",
+      "口语"
+    ],
+    [
+      "a bunch of",
+      "slang",
+      "好多，一堆",
+      "口语"
+    ],
+    [
+      "a ton of",
+      "slang",
+      "大量，好多",
+      "口语"
+    ],
+    [
+      "heaps of",
+      "slang",
+      "好多",
+      "口语，英式/澳式"
+    ],
+    [
+      "loads of",
+      "slang",
+      "好多",
+      "口语，英式"
+    ],
+    [
+      "a whole lot",
+      "slang",
+      "非常；很多",
+      "口语"
+    ],
+    [
+      "a hell of a",
+      "slang",
+      "非常；可真是个",
+      "口语，语气较粗"
+    ],
+    [
+      "a hell of a lot",
+      "slang",
+      "非常多",
+      "口语，语气较粗"
+    ],
+    [
+      "way too",
+      "slang",
+      "也太……了",
+      "口语"
+    ],
+    [
+      "way more",
+      "slang",
+      "多多了",
+      "口语"
+    ],
+    [
+      "pretty much",
+      "slang",
+      "差不多，几乎",
+      "口语"
+    ],
+    [
+      "kind of like",
+      "slang",
+      "有点像；算是",
+      "口语"
+    ],
+    [
+      "a bit of a",
+      "slang",
+      "有点儿像是个",
+      "口语，英式"
+    ],
+    [
+      "not gonna lie",
+      "slang",
+      "不瞒你说",
+      "口语"
+    ],
+    [
+      "just saying",
+      "slang",
+      "我就一说，不针对谁",
+      "口语"
+    ],
+    [
+      "no offence",
+      "slang",
+      "没有冒犯的意思",
+      "口语，英式"
+    ],
+    [
+      "you got this",
+      "slang",
+      "你能行",
+      "口语"
+    ],
+    [
+      "i got this",
+      "slang",
+      "这事包在我身上",
+      "口语"
+    ],
+    [
+      "i got you",
+      "slang",
+      "我懂你；我来帮你",
+      "口语"
+    ],
+    [
+      "we got this",
+      "slang",
+      "咱们能行",
+      "口语"
+    ],
+    [
+      "got your back",
+      "slang",
+      "我撑你，有我在",
+      "口语"
+    ],
+    [
+      "nail it",
+      "slang",
+      "完美完成，搞掂",
+      "口语"
+    ],
+    [
+      "killed it",
+      "slang",
+      "表现超赞",
+      "口语"
+    ],
+    [
+      "you slayed",
+      "slang",
+      "你太绝了",
+      "网络用语"
+    ],
+    [
+      "now we're talking",
+      "slang",
+      "这才像样，这才对路",
+      "口语"
+    ],
+    [
+      "blah blah blah",
+      "slang",
+      "如此这般，啰嗦的话省略",
+      "口语"
+    ],
+    [
+      "yada yada yada",
+      "slang",
+      "等等等等，略去不说",
+      "口语，美式"
+    ],
+    [
+      "a whole nother",
+      "slang",
+      "完全另外的（非规范说法）",
+      "口语，美式"
+    ],
+    [
+      "a whole nother story",
+      "slang",
+      "完全是另一回事",
+      "口语，美式"
+    ],
+    [
+      "oh my god",
+      "slang",
+      "我的天",
+      "口语"
+    ],
+    [
+      "oh my gosh",
+      "slang",
+      "我的天",
+      "口语"
+    ],
+    [
+      "oh come on",
+      "slang",
+      "得了吧；拜托",
+      "口语"
+    ],
+    [
+      "oh crap",
+      "slang",
+      "糟了",
+      "口语，语气较粗"
+    ],
+    [
+      "oh shit",
+      "slang",
+      "糟了",
+      "口语，语气较粗"
+    ],
+    [
+      "holy cow",
+      "slang",
+      "我的天",
+      "口语，美式"
+    ],
+    [
+      "holy crap",
+      "slang",
+      "我的天",
+      "口语，语气较粗"
+    ],
+    [
+      "holy shit",
+      "slang",
+      "我的天",
+      "口语，语气较粗"
+    ],
+    [
+      "what the hell",
+      "slang",
+      "搞什么；我的天",
+      "口语，语气较粗"
+    ],
+    [
+      "what the heck",
+      "slang",
+      "搞什么",
+      "口语"
+    ],
+    [
+      "what the fuck",
+      "slang",
+      "搞什么",
+      "口语，语气很粗"
+    ],
+    [
+      "knock it off",
+      "slang",
+      "别闹了",
+      "口语"
+    ],
+    [
+      "give it a rest",
+      "slang",
+      "别再说了，歇歇吧",
+      "口语"
+    ],
+    [
+      "give me a break",
+      "slang",
+      "饶了我吧；得了吧",
+      "口语"
+    ],
+    [
+      "get out of here",
+      "slang",
+      "走开；不会吧（表示不信）",
+      "口语"
+    ],
+    [
+      "get outta here",
+      "slang",
+      "走开；不会吧",
+      "口语"
+    ],
+    [
+      "come off it",
+      "slang",
+      "得了吧，别胡说了",
+      "口语，英式"
+    ],
+    [
+      "shut it",
+      "slang",
+      "闭嘴",
+      "口语，语气较粗"
+    ],
+    [
+      "sod off",
+      "slang",
+      "滚开",
+      "口语，英式，语气较粗"
+    ],
+    [
+      "piss off",
+      "slang",
+      "惹恼；滚开",
+      "v",
+      "口语，语气较粗"
+    ],
+    [
+      "sick and tired of",
+      "slang",
+      "腻透了，受够了",
+      "口语"
+    ],
+    [
+      "i've had it",
+      "slang",
+      "我受够了",
+      "口语"
+    ],
+    [
+      "enough already",
+      "slang",
+      "够了够了",
+      "口语，美式"
+    ],
+    [
+      "fed up with",
+      "slang",
+      "受够了",
+      "口语"
+    ],
+    [
+      "that's wild",
+      "slang",
+      "这也太离谱了",
+      "口语"
+    ],
+    [
+      "that's crazy",
+      "slang",
+      "这也太离谱了",
+      "口语"
+    ],
+    [
+      "that's messed up",
+      "slang",
+      "这太过分了，不正常",
+      "口语"
+    ],
+    [
+      "i'm dying laughing",
+      "slang",
+      "笑死我了",
+      "口语"
+    ],
+    [
+      "laugh my ass off",
+      "slang",
+      "笑死我了",
+      "口语，语气较粗"
+    ],
+    [
+      "too soon",
+      "slang",
+      "现在就拿这个开玩笑还太早",
+      "口语"
+    ],
+    [
+      "cross the line",
+      "slang",
+      "越界了",
+      "口语"
+    ],
+    [
+      "out of line",
+      "slang",
+      "越界，不像话",
+      "口语"
+    ],
+    [
+      "it's not you it's me",
+      "slang",
+      "不是你的问题，是我的问题（分手套话）",
+      "口语"
+    ],
+    [
+      "damn it",
+      "slang",
+      "该死",
+      "口语，语气较粗"
+    ],
+    [
+      "goddamn it",
+      "slang",
+      "该死",
+      "口语，语气较粗"
+    ],
+    [
+      "screw it",
+      "slang",
+      "算了，不管了",
+      "口语，语气较粗"
+    ],
+    [
+      "fuck it",
+      "slang",
+      "算了，不管了",
+      "口语，语气很粗"
+    ],
+    [
+      "fuck off",
+      "slang",
+      "滚开",
+      "口语，语气很粗"
+    ],
+    [
+      "fuck up",
+      "slang",
+      "搞砸",
+      "v",
+      "口语，语气很粗"
+    ],
+    [
+      "swear to god",
+      "slang",
+      "对天发誓",
+      "口语"
+    ],
+    [
+      "cross my heart",
+      "slang",
+      "我保证，发誓",
+      "口语"
+    ],
+    [
+      "off the hook",
+      "slang",
+      "摆脱麻烦；非常精彩",
+      "口语"
+    ],
+    [
+      "through the roof",
+      "slang",
+      "飙升，高得不行",
+      "口语"
+    ],
+    [
+      "on cloud nine",
+      "slang",
+      "高兴得飘起来",
+      "口语"
+    ],
+    [
+      "in stitches",
+      "slang",
+      "笑得肚子痛",
+      "口语"
+    ],
+    [
+      "lose one's mind",
+      "slang",
+      "要疯了，受不了",
+      "口语"
+    ],
+    [
+      "go ballistic",
+      "slang",
+      "勃然大怒",
+      "口语"
+    ],
+    [
+      "drive me crazy",
+      "slang",
+      "让我受不了",
+      "口语"
+    ],
+    [
+      "tick me off",
+      "slang",
+      "惹我生气",
+      "口语，美式"
+    ],
+    [
+      "bring it on",
+      "slang",
+      "放马过来，尽管来",
+      "口语"
+    ],
+    [
+      "go big or go home",
+      "slang",
+      "要么全力以赴，要么别做",
+      "口语"
+    ],
+    [
+      "bottled it",
+      "slang",
+      "关键时刻怂了、搞砸了",
+      "口语，英式，体育"
+    ],
+    [
+      "call the shots",
+      "slang",
+      "说了算，做主",
+      "口语"
+    ],
+    [
+      "it is what it is",
+      "slang",
+      "事情就是这样，没法子",
+      "口语"
+    ],
+    [
+      "close but no cigar",
+      "slang",
+      "差一点就成了",
+      "口语，美式"
+    ],
+    [
+      "hands down",
+      "slang",
+      "毫无悬念地，绝对",
+      "口语"
+    ],
+    [
+      "for god's sake",
+      "slang",
+      "拜托，看在上帝的份上",
+      "口语，语气较重"
+    ],
+    [
+      "get cracking",
+      "slang",
+      "赶紧开始",
+      "口语，英式"
+    ],
+    [
+      "bits and bobs",
+      "slang",
+      "零碎东西",
+      "口语，英式"
+    ],
+    [
+      "having a laugh",
+      "slang",
+      "在开玩笑；逗你的",
+      "口语，英式"
+    ],
+    [
+      "take the piss",
+      "slang",
+      "嘲弄，开过分的玩笑",
+      "v",
+      "口语，英式，语气较粗"
+    ],
+    [
+      "take the mickey",
+      "slang",
+      "取笑，开玩笑",
+      "v",
+      "口语，英式"
+    ],
+    [
+      "can't be arsed",
+      "slang",
+      "懒得做，不想费劲",
+      "口语，英式，语气较粗"
+    ],
+    [
+      "couldn't be arsed",
+      "slang",
+      "懒得做，不想费劲",
+      "口语，英式，语气较粗"
+    ],
+    [
+      "can't be bothered",
+      "slang",
+      "懒得去做",
+      "口语，英式"
+    ],
+    [
+      "bob's your uncle",
+      "slang",
+      "就这么简单，完事了",
+      "口语，英式"
+    ],
+    [
+      "i'm knackered",
+      "slang",
+      "我累坏了",
+      "口语，英式"
+    ],
+    [
+      "i'm gutted",
+      "slang",
+      "我特别失望",
+      "口语，英式"
+    ],
+    [
+      "i'm chuffed",
+      "slang",
+      "我高兴坏了",
+      "口语，英式"
+    ],
+    [
+      "i'm gobsmacked",
+      "slang",
+      "我惊呆了",
+      "口语，英式"
+    ],
+    [
+      "bloody hell",
+      "slang",
+      "我的天；该死",
+      "口语，英式，语气较粗"
+    ],
+    [
+      "couldn't care less",
+      "slang",
+      "完全不在乎",
+      "口语"
+    ],
+    [
+      "skive off",
+      "slang",
+      "旷工，偷懒溜走",
+      "口语，英式"
+    ],
+    [
+      "chuck it in",
+      "slang",
+      "放弃，不干了",
+      "口语，英式"
+    ],
+    [
+      "not my cup of tea",
+      "slang",
+      "不是我喜欢的类型",
+      "口语，英式"
+    ],
+    [
+      "go out with",
+      "slang",
+      "和……交往、约会",
+      "口语"
+    ],
+    [
+      "make out with",
+      "slang",
+      "和……亲热接吻",
+      "口语"
+    ],
+    [
+      "hook up with",
+      "slang",
+      "和……勾搭上或约上（有时指亲热）",
+      "口语"
+    ],
+    [
+      "sleep over",
+      "slang",
+      "在别人家过夜",
+      "口语"
+    ],
+    [
+      "get dumped",
+      "slang",
+      "被甩了",
+      "口语"
+    ],
+    [
+      "not into",
+      "slang",
+      "对……不感兴趣",
+      "口语"
+    ],
+    [
+      "really into",
+      "slang",
+      "很喜欢，很迷",
+      "口语"
+    ],
+    [
+      "the missus",
+      "slang",
+      "我老婆（口语说法）",
+      "口语，英式"
+    ],
+    [
+      "my old lady",
+      "slang",
+      "我妈；有时也指我老婆",
+      "口语，美式"
+    ],
+    [
+      "baby daddy",
+      "slang",
+      "孩子的亲生父亲（不一定还在一起）",
+      "口语，美式"
+    ],
+    [
+      "baby mama",
+      "slang",
+      "孩子的亲生母亲（不一定还在一起）",
+      "口语，美式"
+    ],
+    [
+      "paint the town red",
+      "slang",
+      "出去狂欢玩个痛快",
+      "口语"
+    ],
+    [
+      "bar hop",
+      "slang",
+      "一家家酒吧喝过去",
+      "口语"
+    ],
+    [
+      "go clubbing",
+      "slang",
+      "去夜店玩",
+      "口语"
+    ],
+    [
+      "flat broke",
+      "slang",
+      "穷得叮当响",
+      "口语"
+    ],
+    [
+      "strapped for cash",
+      "slang",
+      "手头紧",
+      "口语"
+    ],
+    [
+      "cost a fortune",
+      "slang",
+      "贵得要命",
+      "口语"
+    ],
+    [
+      "pay through the nose",
+      "slang",
+      "花大价钱，被宰",
+      "口语"
+    ],
+    [
+      "rake it in",
+      "slang",
+      "大把赚钱",
+      "口语"
+    ],
+    [
+      "make bank",
+      "slang",
+      "赚大钱",
+      "口语，美式"
+    ],
+    [
+      "it's on me",
+      "slang",
+      "我请客",
+      "口语"
+    ],
+    [
+      "it's on the house",
+      "slang",
+      "店里请客，免费",
+      "口语"
+    ],
+    [
+      "go dutch",
+      "slang",
+      "AA 制",
+      "口语"
+    ],
+    [
+      "grab a bite",
+      "slang",
+      "随便吃点东西",
+      "口语"
+    ],
+    [
+      "chow down",
+      "slang",
+      "开吃，大吃",
+      "口语，美式"
+    ],
+    [
+      "scarf down",
+      "slang",
+      "狼吞虎咽",
+      "v",
+      "口语，美式"
+    ],
+    [
+      "wolf down",
+      "slang",
+      "狼吞虎咽",
+      "v",
+      "口语"
+    ],
+    [
+      "order in",
+      "slang",
+      "叫外卖",
+      "口语"
+    ],
+    [
+      "hit the spot",
+      "slang",
+      "正对胃口，很解馋或很管用",
+      "口语"
+    ],
+    [
+      "to die for",
+      "slang",
+      "美味或精彩得要命",
+      "口语"
+    ],
+    [
+      "nom nom",
+      "slang",
+      "好吃（拟声）",
+      "口语，网络用语"
+    ],
+    [
+      "crash at my place",
+      "slang",
+      "挤在我家住一晚",
+      "口语"
+    ],
+    [
+      "crash on the couch",
+      "slang",
+      "在沙发上凑合一晚",
+      "口语"
+    ],
+    [
+      "power nap",
+      "slang",
+      "补个短觉",
+      "口语"
+    ],
+    [
+      "hit the sack",
+      "slang",
+      "去睡觉",
+      "口语"
+    ],
+    [
+      "sleep in late",
+      "slang",
+      "睡懒觉到很晚",
+      "口语"
+    ],
+    [
+      "pull an all nighter",
+      "slang",
+      "熬通宵",
+      "口语"
+    ],
+    [
+      "all nighter",
+      "slang",
+      "通宵熬夜",
+      "口语"
+    ],
+    [
+      "binge watch",
+      "slang",
+      "刷剧，连着看很多集",
+      "口语"
+    ],
+    [
+      "i'm wiped",
+      "slang",
+      "我累垮了",
+      "口语"
+    ],
+    [
+      "tired as hell",
+      "slang",
+      "累得要命",
+      "口语，语气较粗"
+    ],
+    [
+      "running on fumes",
+      "slang",
+      "已经在硬撑",
+      "口语"
+    ],
+    [
+      "feel like crap",
+      "slang",
+      "感觉很糟，很不舒服",
+      "口语，语气较粗"
+    ],
+    [
+      "feel like shit",
+      "slang",
+      "感觉糟透了",
+      "口语，语气很粗"
+    ],
+    [
+      "hung over",
+      "slang",
+      "宿醉",
+      "口语"
+    ],
+    [
+      "sick as a dog",
+      "slang",
+      "病得很重",
+      "口语"
+    ],
+    [
+      "dead on my feet",
+      "slang",
+      "累得快站不住了",
+      "口语"
+    ],
+    [
+      "killing me",
+      "slang",
+      "让我难受死了；也说笑死我了",
+      "口语"
+    ],
+    [
+      "ditch class",
+      "slang",
+      "逃课",
+      "口语"
+    ],
+    [
+      "skip class",
+      "slang",
+      "逃课",
+      "口语"
+    ],
+    [
+      "blow off steam",
+      "slang",
+      "发泄，散心",
+      "口语"
+    ],
+    [
+      "cram for",
+      "slang",
+      "临时抱佛脚，突击复习",
+      "口语"
+    ],
+    [
+      "ace the test",
+      "slang",
+      "考得很好",
+      "口语"
+    ],
+    [
+      "take a rain check",
+      "slang",
+      "改天再约",
+      "口语"
+    ],
+    [
+      "rain check",
+      "slang",
+      "改天再说",
+      "口语"
+    ],
+    [
+      "the daily grind",
+      "slang",
+      "每天的苦差、朝九晚五",
+      "口语"
+    ],
+    [
+      "same old same old",
+      "slang",
+      "还是老样子",
+      "口语"
+    ],
+    [
+      "here we go again",
+      "slang",
+      "又来了",
+      "口语"
+    ],
+    [
+      "in a bit",
+      "slang",
+      "过一会儿",
+      "口语"
+    ],
+    [
+      "real quick",
+      "slang",
+      "很快地，顺便一下",
+      "口语，美式"
+    ],
+    [
+      "one of those days",
+      "slang",
+      "诸事不顺的一天",
+      "口语"
+    ]
+  ]
+}
